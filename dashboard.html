@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tableau de bord - Kélonia</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-name">Kélonia</span>
+        <span class="logo">🐢</span>
+      </div>
+
+      <nav>
+        <ul class="nav-list">
+          <li><a class="nav-link" href="index.html">Accueil</a></li>
+          <li><a class="nav-link active" href="dashboard.html">Tableau de bord</a></li>
+          <li><a class="nav-link" href="apropos.html">À propos</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <div class="container dashboard-grid">
+      <section class="card">
+        <h2>Température du nid</h2>
+        <canvas id="tempChart"></canvas>
+      </section>
+
+      <section class="card">
+        <h2>Humidité</h2>
+        <canvas id="humidityChart"></canvas>
+      </section>
+
+      <section class="card">
+        <h2>Vibrations</h2>
+        <canvas id="vibrationChart"></canvas>
+      </section>
+
+      <section class="card">
+        <h2>Niveau sonore</h2>
+        <canvas id="soundChart"></canvas>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p>© 2025 Kélonia · Surveillance des nids de tortues</p>
+    </div>
+  </footer>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
