@@ -27,6 +27,13 @@
   <main class="dashboard">
     <div class="container dashboard-grid">
       <section class="card">
+        <h2>Données actuelles</h2>
+        <div id="dataDisplay" style="font-family: monospace; font-size: 13px; overflow-x: auto;">
+          <pre id="jsonData">Chargement...</pre>
+        </div>
+      </section>
+
+      <section class="card">
         <h2>Température du nid</h2>
         <canvas id="tempChart"></canvas>
       </section>
@@ -42,7 +49,7 @@
       </section>
 
       <section class="card">
-        <h2>Niveau sonore</h2>
+        <h2>Tension (V)</h2>
         <canvas id="soundChart"></canvas>
       </section>
     </div>

@@ -73,6 +73,10 @@ async function updateChartsFromSimulator() {
 
     console.log('📊 Données reçues du simulateur:', data);
 
+    // Afficher les données JSON en temps réel
+    const jsonDisplay = document.getElementById('jsonData');
+    jsonDisplay.textContent = JSON.stringify(data, null, 2);
+
     // Mettre à jour l'historique
     dataHistory.temperature.push(data.temperature);
     dataHistory.temperature.shift();
