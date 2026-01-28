@@ -1,8 +1,9 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 import random, time
 
 app = Flask(__name__)
-
+CORS(app)  # Activer CORS pour les requêtes depuis le navigateur
 def generate_data():
     return {
         "nid": "A12",

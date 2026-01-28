@@ -1,6 +1,14 @@
 // Données de base (ex : dernières 6 mesures)
 const labels = ['T-30min', 'T-25min', 'T-20min', 'T-15min', 'T-10min', 'T-5min'];
 
+// Historique des données (garder 6 dernières mesures)
+const dataHistory = {
+  temperature: [25, 25.5, 26, 26.5, 27, 27.5],
+  humidite: [75, 76, 77, 78, 79, 80],
+  vibration: [3.7, 3.8, 3.9, 3.85, 4.0, 4.1],
+  tension: [1, 1.5, 2.0, 2.2, 2.5, 2.8]
+};
+
 function createLineChart(canvasId, label, color, data) {
   const ctx = document.getElementById(canvasId);
   return new Chart(ctx, {
@@ -32,46 +40,75 @@ const tempChart = createLineChart(
   'tempChart',
   'Température (°C)',
   'rgba(255, 99, 132, 1)',
-  [28, 28.5, 29, 29.2, 29.5, 29.7]
+  [...dataHistory.temperature]
 );
 
 const humidityChart = createLineChart(
   'humidityChart',
   'Humidité (%)',
   'rgba(54, 162, 235, 1)',
-  [70, 71, 72, 73, 74, 75]
+  [...dataHistory.humidite]
 );
 
 const vibrationChart = createLineChart(
   'vibrationChart',
   'Vibrations (m/s²)',
   'rgba(255, 206, 86, 1)',
-  [0.1, 0.15, 0.2, 0.18, 0.22, 0.25]
+  [...dataHistory.vibration]
 );
 
 const soundChart = createLineChart(
   'soundChart',
-  'Niveau sonore (dB)',
+  'Tension (V)',
   'rgba(75, 192, 192, 1)',
-  [30, 32, 31, 33, 34, 35]
+  [...dataHistory.tension]
 );
 
-// Exemple de mise à jour toutes les 5 secondes (simulation)
-setInterval(() => {
-  const nowLabel = 'Maintenant';
-  labels.push(nowLabel);
-  labels.shift(); // on garde 6 points
+// Fonction pour mettre à jour les graphiques avec les données du simulateur
+async function updateChartsFromSimulator() {
+  try {
+    // Récupérer les données du simulateur (API Python)
+    const response = await fetch('http://localhost:5000/data');
+    const data = await response.json();
 
-  function pushRandom(chart, min, max) {
-    const data = chart.data.datasets[0].data;
-    const newValue = (Math.random() * (max - min) + min).toFixed(1);
-    data.push(Number(newValue));
-    data.shift();
-    chart.update();
+    console.log('📊 Données reçues du simulateur:', data);
+
+    // Mettre à jour l'historique
+    dataHistory.temperature.push(data.temperature);
+    dataHistory.temperature.shift();
+
+    dataHistory.humidite.push(data.humidite);
+    dataHistory.humidite.shift();
+
+    dataHistory.vibration.push(data.vibration);
+    dataHistory.vibration.shift();
+
+    dataHistory.tension.push(data.tension);
+    dataHistory.tension.shift();
+
+    console.log('📈 Historique température:', dataHistory.temperature);
+    console.log('📈 Historique vibration:', dataHistory.vibration);
+
+    // Mettre à jour les graphiques
+    tempChart.data.datasets[0].data = [...dataHistory.temperature];
+    tempChart.update();
+
+    humidityChart.data.datasets[0].data = [...dataHistory.humidite];
+    humidityChart.update();
+
+    vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
+    vibrationChart.update();
+
+    soundChart.data.datasets[0].data = [...dataHistory.tension];
+    soundChart.update();
+
+  } catch (error) {
+    console.error('❌ Erreur lors de la récupération des données:', error);
   }
+}
 
-  pushRandom(tempChart, 28, 30);
-  pushRandom(humidityChart, 70, 80);
-  pushRandom(vibrationChart, 0.1, 0.4);
-  pushRandom(soundChart, 30, 40);
-}, 5000);
+// Mettre à jour les graphiques toutes les 5 secondes avec les données du simulateur
+setInterval(updateChartsFromSimulator, 5000);
+
+// Première mise à jour immédiate
+updateChartsFromSimulator();
