@@ -1,8 +1,9 @@
 // Configuration de l'API - À modifier selon l'environnement
 // En local: 'http://localhost:5000'
+// Avec Docker: '/api' (proxy nginx)
 // Avec VM: 'http://<IP_VM>:5000' ou 'http://<hostname_VM>:5000'
 // En production: 'https://api.example.com'
-const API_URL = localStorage.getItem('apiUrl') || 'http://localhost:5000';
+const API_URL = localStorage.getItem('apiUrl') || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : '/api');
 
 // Données de base (ex : dernières 6 mesures)
 const labels = ['T-30min', 'T-25min', 'T-20min', 'T-15min', 'T-10min', 'T-5min'];
