@@ -1,5 +1,9 @@
 # 🐢 Kélonia - Guide de Déploiement
 
+**⚠️ Important:** Lire le guide spécifique pour votre plateforme:
+- **Synology NAS**: Voir [SYNOLOGY.md](SYNOLOGY.md) ← Si vous avez un Synology
+- **VM Standard**: Voir ci-dessous
+
 ## Architecture distribuée
 
 Le système fonctionne avec **2 VMs séparées** :
@@ -7,17 +11,18 @@ Le système fonctionne avec **2 VMs séparées** :
 ```
 ┌──────────────────────────┐       ┌──────────────────────────┐
 │   VM 1 - Web Server      │       │  VM 2 - Simulateur       │
-│                          │       │                          │
-│  • Nginx (Port 80)       │       │  • Flask API (Port 5000) │
-│  • Site web              │◄──────┤  • Données capteurs      │
-│  • Proxy vers simulateur │       │  • Génération données    │
+│   ou NAS Synology        │       │                          │
+│                          │       │  • Flask API (Port 5000) │
+│  • Nginx                 │       │  • Données capteurs      │
+│  • Site web              │◄──────┤  • Génération données    │
+│  • Proxy vers simulateur │       │                          │
 └──────────────────────────┘       └──────────────────────────┘
            ▲                                    │
            │                                    │
            └────── Appels API /api/data ────────┘
 ```
 
-## Déploiement
+## Déploiement Standard (VM)
 
 ### VM 2 : Simulateur (Première)
 
