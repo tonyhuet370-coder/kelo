@@ -1,3 +1,9 @@
+// Configuration de l'API - À modifier selon l'environnement
+// En local: 'http://localhost:5000'
+// Avec VM: 'http://<IP_VM>:5000' ou 'http://<hostname_VM>:5000'
+// En production: 'https://api.example.com'
+const API_URL = localStorage.getItem('apiUrl') || 'http://localhost:5000';
+
 // Données de base (ex : dernières 6 mesures)
 const labels = ['T-30min', 'T-25min', 'T-20min', 'T-15min', 'T-10min', 'T-5min'];
 
@@ -68,7 +74,7 @@ const soundChart = createLineChart(
 async function updateChartsFromSimulator() {
   try {
     // Récupérer les données du simulateur (API Python)
-    const response = await fetch('http://localhost:5000/data');
+    const response = await fetch(API_URL + '/data');
     const data = await response.json();
 
     console.log('📊 Données reçues du simulateur:', data);
@@ -108,8 +114,41 @@ async function updateChartsFromSimulator() {
 
   } catch (error) {
     console.error('❌ Erreur lors de la récupération des données:', error);
+    const statusEl = document.getElementById('apiStatus');
+    if (statusEl) {
+      statusEl.textContent = '❌ Connexion échouée - Vérifier l\'URL';
+      statusEl.style.color = '#FF6B6B';
+    }
   }
 }
+
+// Gestion de la configuration de l'API
+document.addEventListener('DOMContentLoaded', () => {
+  const apiUrlInput = document.getElementById('apiUrlInput');
+  const saveApiBtn = document.getElementById('saveApiBtn');
+  const apiStatus = document.getElementById('apiStatus');
+
+  if (apiUrlInput) {
+    apiUrlInput.value = API_URL;
+    
+    saveApiBtn.addEventListener('click', () => {
+      const newUrl = apiUrlInput.value.trim();
+      if (newUrl) {
+        localStorage.setItem('apiUrl', newUrl);
+        window.API_URL = newUrl; // Mettre à jour la variable globale
+        apiStatus.textContent = '✓ Configuration enregistrée!';
+        apiStatus.style.color = '#4CAF50';
+        updateChartsFromSimulator(); // Tester la connexion immédiatement
+      }
+    });
+
+    apiUrlInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        saveApiBtn.click();
+      }
+    });
+  }
+});
 
 // Mettre à jour les graphiques toutes les 5 secondes avec les données du simulateur
 setInterval(updateChartsFromSimulator, 5000);
