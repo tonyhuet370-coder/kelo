@@ -1,4 +1,4 @@
-version: '3.9'
+version: '3.11'
 
 services:
   # Serveur web pour le site
@@ -45,6 +45,35 @@ services:
         reservations:
           cpus: '0.25'
           memory: 128M
+
+  # Broker MQTT
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    networks:
+      - kelo-network
+    restart: unless-stopped
+
+  # Collector: s'abonne au broker et expose /latest et SSE /collector/events
+  collector:
+    build:
+      context: ./collector
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    networks:
+      - kelo-network
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
 
 networks:
   kelo-network:

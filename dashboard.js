@@ -152,7 +152,55 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Mettre à jour les graphiques toutes les 5 secondes avec les données du simulateur
-setInterval(updateChartsFromSimulator, 5000);
+// SSE real-time subscription to collector; fallback to polling
+function startSSE() {
+  const sseUrl = (window.location.hostname === 'localhost') ? 'http://localhost:8081/collector/events' : '/collector/events';
+  try {
+    const es = new EventSource(sseUrl);
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        // update display and charts
+        const jsonDisplay = document.getElementById('jsonData');
+        if (jsonDisplay) jsonDisplay.textContent = JSON.stringify(data, null, 2);
 
-// Première mise à jour immédiate
-updateChartsFromSimulator();
+        // if payload nested under data key (collector), adapt
+        const payload = data.data ? data.data : data;
+
+        dataHistory.temperature.push(payload.temperature);
+        dataHistory.temperature.shift();
+        dataHistory.humidite.push(payload.humidite);
+        dataHistory.humidite.shift();
+        dataHistory.vibration.push(payload.vibration);
+        dataHistory.vibration.shift();
+        dataHistory.tension.push(payload.tension);
+        dataHistory.tension.shift();
+
+        tempChart.data.datasets[0].data = [...dataHistory.temperature];
+        tempChart.update();
+        humidityChart.data.datasets[0].data = [...dataHistory.humidite];
+        humidityChart.update();
+        vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
+        vibrationChart.update();
+        soundChart.data.datasets[0].data = [...dataHistory.tension];
+        soundChart.update();
+      } catch (err) {
+        console.error('SSE parse error', err);
+      }
+    };
+    es.onerror = (err) => {
+      console.warn('SSE error, falling back to polling', err);
+      es.close();
+      // start polling
+      setInterval(updateChartsFromSimulator, 5000);
+      updateChartsFromSimulator();
+    };
+  } catch (e) {
+    console.warn('SSE not available, fallback to polling', e);
+    setInterval(updateChartsFromSimulator, 5000);
+    updateChartsFromSimulator();
+  }
+}
+
+// Start SSE and fallback automatically
+startSSE();
