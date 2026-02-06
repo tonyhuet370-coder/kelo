@@ -1,10 +1,13 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
+import json
 import random
 import time
 import os
 import logging
 from datetime import datetime
+import threading
+import paho.mqtt.client as mqtt
 
 # Configuration du logging
 logging.basicConfig(
@@ -20,10 +23,18 @@ CORS(app)  # Activer CORS pour les requêtes depuis le navigateur
 PORT = int(os.getenv('SIMULATEUR_PORT', 5000))
 HOST = os.getenv('SIMULATEUR_HOST', '0.0.0.0')
 DEBUG = os.getenv('FLASK_ENV') == 'development'
+MQTT_BROKER = os.getenv('MQTT_BROKER', 'mosquitto')
+MQTT_PORT = int(os.getenv('MQTT_PORT', 1883))
+MQTT_TOPIC = os.getenv('MQTT_TOPIC', 'kelo/nid/A12/telemetry')
+PUBLISH_INTERVAL = float(os.getenv('PUBLISH_INTERVAL', 5))
+
+mqtt_client = None
+latest_data = None
+latest_lock = threading.Lock()
 
 def generate_data():
     """Génère les données du simulateur de capteurs"""
-    return {
+    data = {
         "nid": "A12",
         "temperature": round(random.uniform(20.0, 30.0), 2),
         "humidite": round(random.randint(70, 90), 2),
@@ -31,6 +42,40 @@ def generate_data():
         "tension": round(random.uniform(0.0, 4.2), 2),
         "horodatage": datetime.utcnow().isoformat() + "Z"
     }
+    with latest_lock:
+        global latest_data
+        latest_data = data
+    return data
+
+def connect_mqtt():
+    client = mqtt.Client()
+    while True:
+        try:
+            client.connect(MQTT_BROKER, MQTT_PORT, 60)
+            client.loop_start()
+            logger.info(f"✅ Connecté au broker MQTT {MQTT_BROKER}:{MQTT_PORT}")
+            return client
+        except Exception as e:
+            logger.error(f"❌ Connexion MQTT échouée: {e}")
+            time.sleep(5)
+
+def publish_loop():
+    global mqtt_client
+    while True:
+        data = generate_data()
+        try:
+            if mqtt_client is None:
+                mqtt_client = connect_mqtt()
+            mqtt_client.publish(MQTT_TOPIC, json.dumps(data))
+        except Exception as e:
+            logger.error(f"❌ Publication MQTT échouée: {e}")
+            try:
+                if mqtt_client is not None:
+                    mqtt_client.loop_stop()
+            except Exception:
+                pass
+            mqtt_client = None
+        time.sleep(PUBLISH_INTERVAL)
 
 @app.route('/data', methods=['GET'])
 def send_data():
@@ -60,6 +105,9 @@ def internal_error(error):
     return jsonify({"error": "Erreur interne du serveur"}), 500
 
 if __name__ == '__main__':
+    mqtt_client = connect_mqtt()
+    t = threading.Thread(target=publish_loop, daemon=True)
+    t.start()
     logger.info(f"🚀 Démarrage du simulateur sur {HOST}:{PORT}")
     logger.info(f"Mode DEBUG: {DEBUG}")
     app.run(host=HOST, port=PORT, debug=DEBUG)
