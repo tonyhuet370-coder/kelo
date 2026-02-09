@@ -1,17 +1,11 @@
-// Configuration du collector SSE (MQTT -> SSE)
-// En local: 'http://localhost:8081'
-// En réseau: 'http://<IP_DU_NAS>:8081'
-// En prod derrière nginx: même origine
-const DEFAULT_COLLECTOR_BASE_URL = (window.location.hostname === 'localhost')
-  ? 'http://localhost:8081'
-  : window.location.origin;
-const COLLECTOR_BASE_URL = localStorage.getItem('collectorUrl') || DEFAULT_COLLECTOR_BASE_URL;
-
-function buildCollectorEventsUrl(baseUrl) {
-  if (!baseUrl) return '/collector/events';
-  if (baseUrl.endsWith('/collector/events')) return baseUrl;
-  return baseUrl.replace(/\/+$/, '') + '/collector/events';
-}
+// Configuration MQTT WebSocket (direct broker)
+// Ex: ws://<IP_BROKER>:9001
+const DEFAULT_MQTT_WS_URL = (window.location.hostname === 'localhost')
+  ? 'ws://localhost:9001'
+  : 'ws://localhost:9001';
+const DEFAULT_MQTT_TOPIC = 'kelo/nid/A12/telemetry';
+const MQTT_WS_URL = localStorage.getItem('mqttWsUrl') || DEFAULT_MQTT_WS_URL;
+const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
 
 // Données de base (ex : dernières 6 mesures)
 const labels = ['T-30min', 'T-25min', 'T-20min', 'T-15min', 'T-10min', 'T-5min'];
@@ -79,102 +73,115 @@ const soundChart = createLineChart(
   [...dataHistory.tension]
 );
 
-let eventSource = null;
+let mqttClient = null;
+
+function updateCharts(payload) {
+  if (!payload) return;
+
+  const jsonDisplay = document.getElementById('jsonData');
+  if (jsonDisplay) jsonDisplay.textContent = JSON.stringify(payload, null, 2);
+
+  if (typeof payload.temperature !== 'number') return;
+
+  dataHistory.temperature.push(payload.temperature);
+  dataHistory.temperature.shift();
+  dataHistory.humidite.push(payload.humidite);
+  dataHistory.humidite.shift();
+  dataHistory.vibration.push(payload.vibration);
+  dataHistory.vibration.shift();
+  dataHistory.tension.push(payload.tension);
+  dataHistory.tension.shift();
+
+  tempChart.data.datasets[0].data = [...dataHistory.temperature];
+  tempChart.update();
+  humidityChart.data.datasets[0].data = [...dataHistory.humidite];
+  humidityChart.update();
+  vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
+  vibrationChart.update();
+  soundChart.data.datasets[0].data = [...dataHistory.tension];
+  soundChart.update();
+}
 
 // Gestion de la configuration de l'API
 document.addEventListener('DOMContentLoaded', () => {
   const apiUrlInput = document.getElementById('apiUrlInput');
+  const topicInput = document.getElementById('mqttTopicInput');
   const saveApiBtn = document.getElementById('saveApiBtn');
   const apiStatus = document.getElementById('apiStatus');
 
-  if (apiUrlInput) {
-    apiUrlInput.value = COLLECTOR_BASE_URL;
+  if (apiUrlInput) apiUrlInput.value = MQTT_WS_URL;
+  if (topicInput) topicInput.value = MQTT_TOPIC;
 
+  if (saveApiBtn) {
     saveApiBtn.addEventListener('click', () => {
-      const newUrl = apiUrlInput.value.trim();
-      if (newUrl) {
-        localStorage.setItem('collectorUrl', newUrl);
-        apiStatus.textContent = '✓ Collector configuré';
+      const newUrl = apiUrlInput ? apiUrlInput.value.trim() : '';
+      const newTopic = topicInput ? topicInput.value.trim() : '';
+      if (newUrl) localStorage.setItem('mqttWsUrl', newUrl);
+      if (newTopic) localStorage.setItem('mqttTopic', newTopic);
+      if (apiStatus) {
+        apiStatus.textContent = '✓ MQTT configuré';
         apiStatus.style.color = '#4CAF50';
-        startSSE(newUrl);
       }
-    });
-
-    apiUrlInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        saveApiBtn.click();
-      }
+      startMqtt(newUrl || MQTT_WS_URL, newTopic || MQTT_TOPIC);
     });
   }
 });
 
-// SSE real-time subscription to collector
-function startSSE(baseUrl = COLLECTOR_BASE_URL) {
-  const sseUrl = buildCollectorEventsUrl(baseUrl);
+function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
   const statusEl = document.getElementById('apiStatus');
-  if (eventSource) {
-    eventSource.close();
-  }
-  try {
-    eventSource = new EventSource(sseUrl);
+  if (!window.mqtt) {
     if (statusEl) {
-      statusEl.textContent = '⏳ Connexion au collector...';
-      statusEl.style.color = '#f3c74b';
-    }
-    eventSource.onopen = () => {
-      if (statusEl) {
-        statusEl.textContent = '✓ Collector connecté';
-        statusEl.style.color = '#4CAF50';
-      }
-    };
-    eventSource.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        // update display and charts
-        const jsonDisplay = document.getElementById('jsonData');
-        if (jsonDisplay) jsonDisplay.textContent = JSON.stringify(data, null, 2);
-
-        // if payload nested under data key (collector), adapt
-        const payload = data.data ? data.data : data;
-
-        dataHistory.temperature.push(payload.temperature);
-        dataHistory.temperature.shift();
-        dataHistory.humidite.push(payload.humidite);
-        dataHistory.humidite.shift();
-        dataHistory.vibration.push(payload.vibration);
-        dataHistory.vibration.shift();
-        dataHistory.tension.push(payload.tension);
-        dataHistory.tension.shift();
-
-        tempChart.data.datasets[0].data = [...dataHistory.temperature];
-        tempChart.update();
-        humidityChart.data.datasets[0].data = [...dataHistory.humidite];
-        humidityChart.update();
-        vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
-        vibrationChart.update();
-        soundChart.data.datasets[0].data = [...dataHistory.tension];
-        soundChart.update();
-      } catch (err) {
-        console.error('SSE parse error', err);
-      }
-    };
-    eventSource.onerror = (err) => {
-      console.warn('SSE error', err);
-      if (statusEl) {
-        statusEl.textContent = '❌ Connexion SSE échouée';
-        statusEl.style.color = '#FF6B6B';
-      }
-      eventSource.close();
-      eventSource = null;
-    };
-  } catch (e) {
-    console.warn('SSE not available', e);
-    if (statusEl) {
-      statusEl.textContent = '❌ SSE indisponible';
+      statusEl.textContent = '❌ mqtt.js manquant';
       statusEl.style.color = '#FF6B6B';
     }
+    return;
   }
+
+  if (mqttClient) {
+    mqttClient.end(true);
+  }
+
+  if (statusEl) {
+    statusEl.textContent = '⏳ Connexion MQTT...';
+    statusEl.style.color = '#f3c74b';
+  }
+
+  mqttClient = window.mqtt.connect(wsUrl, {
+    reconnectPeriod: 2000,
+    connectTimeout: 5000
+  });
+
+  mqttClient.on('connect', () => {
+    if (statusEl) {
+      statusEl.textContent = '✓ MQTT connecté';
+      statusEl.style.color = '#4CAF50';
+    }
+    mqttClient.subscribe(topic, (err) => {
+      if (err) {
+        if (statusEl) {
+          statusEl.textContent = '❌ Abonnement MQTT échoué';
+          statusEl.style.color = '#FF6B6B';
+        }
+      }
+    });
+  });
+
+  mqttClient.on('message', (_topic, message) => {
+    try {
+      const payload = JSON.parse(message.toString());
+      updateCharts(payload);
+    } catch (err) {
+      console.error('MQTT parse error', err);
+    }
+  });
+
+  mqttClient.on('error', (err) => {
+    console.error('MQTT error', err);
+    if (statusEl) {
+      statusEl.textContent = '❌ Erreur MQTT';
+      statusEl.style.color = '#FF6B6B';
+    }
+  });
 }
 
-// Start SSE and fallback automatically
-startSSE();
+startMqtt();
