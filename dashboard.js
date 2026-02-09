@@ -1,8 +1,8 @@
 // Configuration MQTT WebSocket (direct broker)
 // Ex: ws://<IP_BROKER>:9001
 const DEFAULT_MQTT_WS_URL = (window.location.hostname === 'localhost')
-  ? 'ws://localhost:9001'
-  : 'ws://localhost:9001';
+  ? 'ws://127.0.0.1:9001'
+  : 'ws://127.0.0.1:9001';
 const DEFAULT_MQTT_TOPIC = 'kelo/nid/A12/telemetry';
 const MQTT_WS_URL = localStorage.getItem('mqttWsUrl') || DEFAULT_MQTT_WS_URL;
 const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
@@ -78,18 +78,24 @@ let mqttClient = null;
 function updateCharts(payload) {
   if (!payload) return;
 
+  const normalized = payload.data ? payload.data : payload;
   const jsonDisplay = document.getElementById('jsonData');
-  if (jsonDisplay) jsonDisplay.textContent = JSON.stringify(payload, null, 2);
+  if (jsonDisplay) jsonDisplay.textContent = JSON.stringify(normalized, null, 2);
 
-  if (typeof payload.temperature !== 'number') return;
+  const temperature = Number(normalized.temperature);
+  const humidite = Number(normalized.humidite);
+  const vibration = Number(normalized.vibration);
+  const tension = Number(normalized.tension);
 
-  dataHistory.temperature.push(payload.temperature);
+  if (!Number.isFinite(temperature)) return;
+
+  dataHistory.temperature.push(temperature);
   dataHistory.temperature.shift();
-  dataHistory.humidite.push(payload.humidite);
+  dataHistory.humidite.push(humidite);
   dataHistory.humidite.shift();
-  dataHistory.vibration.push(payload.vibration);
+  dataHistory.vibration.push(vibration);
   dataHistory.vibration.shift();
-  dataHistory.tension.push(payload.tension);
+  dataHistory.tension.push(tension);
   dataHistory.tension.shift();
 
   tempChart.data.datasets[0].data = [...dataHistory.temperature];
@@ -169,6 +175,10 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
   mqttClient.on('message', (_topic, message) => {
     try {
       const payload = JSON.parse(message.toString());
+      if (statusEl) {
+        statusEl.textContent = '✓ MQTT connecté (message reçu)';
+        statusEl.style.color = '#4CAF50';
+      }
       updateCharts(payload);
     } catch (err) {
       console.error('MQTT parse error', err);
