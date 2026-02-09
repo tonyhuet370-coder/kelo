@@ -75,7 +75,8 @@ async def init_app():
     return app
 
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     t = threading.Thread(target=mqtt_thread, daemon=True)
     t.start()
     web.run_app(init_app(), host='0.0.0.0', port=8081)

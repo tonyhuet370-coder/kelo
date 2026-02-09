@@ -1,9 +1,17 @@
-// Configuration de l'API - À modifier selon l'environnement
-// En local: 'http://localhost:5000'
-// Avec Docker: '/api' (proxy nginx)
-// Avec VM: 'http://<IP_VM>:5000' ou 'http://<hostname_VM>:5000'
-// En production: 'https://api.example.com'
-const API_URL = localStorage.getItem('apiUrl') || (window.location.hostname === 'localhost' ? 'http://localhost:5000' : '/api');
+// Configuration du collector SSE (MQTT -> SSE)
+// En local: 'http://localhost:8081'
+// En réseau: 'http://<IP_DU_NAS>:8081'
+// En prod derrière nginx: même origine
+const DEFAULT_COLLECTOR_BASE_URL = (window.location.hostname === 'localhost')
+  ? 'http://localhost:8081'
+  : window.location.origin;
+const COLLECTOR_BASE_URL = localStorage.getItem('collectorUrl') || DEFAULT_COLLECTOR_BASE_URL;
+
+function buildCollectorEventsUrl(baseUrl) {
+  if (!baseUrl) return '/collector/events';
+  if (baseUrl.endsWith('/collector/events')) return baseUrl;
+  return baseUrl.replace(/\/+$/, '') + '/collector/events';
+}
 
 // Données de base (ex : dernières 6 mesures)
 const labels = ['T-30min', 'T-25min', 'T-20min', 'T-15min', 'T-10min', 'T-5min'];
@@ -71,57 +79,7 @@ const soundChart = createLineChart(
   [...dataHistory.tension]
 );
 
-// Fonction pour mettre à jour les graphiques avec les données du simulateur
-async function updateChartsFromSimulator() {
-  try {
-    // Récupérer les données du simulateur (API Python)
-    const response = await fetch(API_URL + '/data');
-    const data = await response.json();
-
-    console.log('📊 Données reçues du simulateur:', data);
-
-    // Afficher les données JSON en temps réel
-    const jsonDisplay = document.getElementById('jsonData');
-    jsonDisplay.textContent = JSON.stringify(data, null, 2);
-
-    // Mettre à jour l'historique
-    dataHistory.temperature.push(data.temperature);
-    dataHistory.temperature.shift();
-
-    dataHistory.humidite.push(data.humidite);
-    dataHistory.humidite.shift();
-
-    dataHistory.vibration.push(data.vibration);
-    dataHistory.vibration.shift();
-
-    dataHistory.tension.push(data.tension);
-    dataHistory.tension.shift();
-
-    console.log('📈 Historique température:', dataHistory.temperature);
-    console.log('📈 Historique vibration:', dataHistory.vibration);
-
-    // Mettre à jour les graphiques
-    tempChart.data.datasets[0].data = [...dataHistory.temperature];
-    tempChart.update();
-
-    humidityChart.data.datasets[0].data = [...dataHistory.humidite];
-    humidityChart.update();
-
-    vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
-    vibrationChart.update();
-
-    soundChart.data.datasets[0].data = [...dataHistory.tension];
-    soundChart.update();
-
-  } catch (error) {
-    console.error('❌ Erreur lors de la récupération des données:', error);
-    const statusEl = document.getElementById('apiStatus');
-    if (statusEl) {
-      statusEl.textContent = '❌ Connexion échouée - Vérifier l\'URL';
-      statusEl.style.color = '#FF6B6B';
-    }
-  }
-}
+let eventSource = null;
 
 // Gestion de la configuration de l'API
 document.addEventListener('DOMContentLoaded', () => {
@@ -130,16 +88,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const apiStatus = document.getElementById('apiStatus');
 
   if (apiUrlInput) {
-    apiUrlInput.value = API_URL;
-    
+    apiUrlInput.value = COLLECTOR_BASE_URL;
+
     saveApiBtn.addEventListener('click', () => {
       const newUrl = apiUrlInput.value.trim();
       if (newUrl) {
-        localStorage.setItem('apiUrl', newUrl);
-        window.API_URL = newUrl; // Mettre à jour la variable globale
-        apiStatus.textContent = '✓ Configuration enregistrée!';
+        localStorage.setItem('collectorUrl', newUrl);
+        apiStatus.textContent = '✓ Collector configuré';
         apiStatus.style.color = '#4CAF50';
-        updateChartsFromSimulator(); // Tester la connexion immédiatement
+        startSSE(newUrl);
       }
     });
 
@@ -151,13 +108,26 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Mettre à jour les graphiques toutes les 5 secondes avec les données du simulateur
-// SSE real-time subscription to collector; fallback to polling
-function startSSE() {
-  const sseUrl = (window.location.hostname === 'localhost') ? 'http://localhost:8081/collector/events' : '/collector/events';
+// SSE real-time subscription to collector
+function startSSE(baseUrl = COLLECTOR_BASE_URL) {
+  const sseUrl = buildCollectorEventsUrl(baseUrl);
+  const statusEl = document.getElementById('apiStatus');
+  if (eventSource) {
+    eventSource.close();
+  }
   try {
-    const es = new EventSource(sseUrl);
-    es.onmessage = (e) => {
+    eventSource = new EventSource(sseUrl);
+    if (statusEl) {
+      statusEl.textContent = '⏳ Connexion au collector...';
+      statusEl.style.color = '#f3c74b';
+    }
+    eventSource.onopen = () => {
+      if (statusEl) {
+        statusEl.textContent = '✓ Collector connecté';
+        statusEl.style.color = '#4CAF50';
+      }
+    };
+    eventSource.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
         // update display and charts
@@ -188,17 +158,21 @@ function startSSE() {
         console.error('SSE parse error', err);
       }
     };
-    es.onerror = (err) => {
-      console.warn('SSE error, falling back to polling', err);
-      es.close();
-      // start polling
-      setInterval(updateChartsFromSimulator, 5000);
-      updateChartsFromSimulator();
+    eventSource.onerror = (err) => {
+      console.warn('SSE error', err);
+      if (statusEl) {
+        statusEl.textContent = '❌ Connexion SSE échouée';
+        statusEl.style.color = '#FF6B6B';
+      }
+      eventSource.close();
+      eventSource = null;
     };
   } catch (e) {
-    console.warn('SSE not available, fallback to polling', e);
-    setInterval(updateChartsFromSimulator, 5000);
-    updateChartsFromSimulator();
+    console.warn('SSE not available', e);
+    if (statusEl) {
+      statusEl.textContent = '❌ SSE indisponible';
+      statusEl.style.color = '#FF6B6B';
+    }
   }
 }
 
