@@ -12,15 +12,6 @@ services:
     networks:
       - kelo-network
     restart: unless-stopped
-    # Ressources limitées pour Synology
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
 
 
 
