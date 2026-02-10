@@ -66,7 +66,11 @@ def publish_loop():
         try:
             if mqtt_client is None:
                 mqtt_client = connect_mqtt()
-            mqtt_client.publish(MQTT_TOPIC, json.dumps(data))
+            result = mqtt_client.publish(MQTT_TOPIC, json.dumps(data))
+            if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                logger.info(f"📤 MQTT publié sur {MQTT_TOPIC}")
+            else:
+                logger.error(f"❌ Publication MQTT échouée (rc={result.rc})")
         except Exception as e:
             logger.error(f"❌ Publication MQTT échouée: {e}")
             try:
