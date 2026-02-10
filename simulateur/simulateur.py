@@ -31,6 +31,7 @@ PUBLISH_INTERVAL = float(os.getenv('PUBLISH_INTERVAL', 5))
 mqtt_client = None
 latest_data = None
 latest_lock = threading.Lock()
+connected_event = threading.Event()
 
 def generate_data():
     """Génère les données du simulateur de capteurs"""
@@ -47,13 +48,29 @@ def generate_data():
         latest_data = data
     return data
 
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        connected_event.set()
+        logger.info(f"✅ Connecté au broker MQTT {MQTT_BROKER}:{MQTT_PORT}")
+    else:
+        logger.error(f"❌ Connexion MQTT échouée (rc={rc})")
+
+def on_disconnect(client, userdata, rc):
+    connected_event.clear()
+    if rc != 0:
+        logger.error("❌ Déconnecté du broker MQTT")
+
 def connect_mqtt():
     client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
     while True:
         try:
+            connected_event.clear()
             client.connect(MQTT_BROKER, MQTT_PORT, 60)
             client.loop_start()
-            logger.info(f"✅ Connecté au broker MQTT {MQTT_BROKER}:{MQTT_PORT}")
+            if not connected_event.wait(timeout=5):
+                raise RuntimeError("Connexion MQTT timeout")
             return client
         except Exception as e:
             logger.error(f"❌ Connexion MQTT échouée: {e}")
