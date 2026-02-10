@@ -71,6 +71,11 @@ def publish_loop():
                 logger.info(f"📤 MQTT publié sur {MQTT_TOPIC}")
             else:
                 logger.error(f"❌ Publication MQTT échouée (rc={result.rc})")
+                try:
+                    mqtt_client.loop_stop()
+                except Exception:
+                    pass
+                mqtt_client = None
         except Exception as e:
             logger.error(f"❌ Publication MQTT échouée: {e}")
             try:
