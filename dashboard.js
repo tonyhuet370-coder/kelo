@@ -17,6 +17,12 @@ const soundEl = document.getElementById("sound-value");
 let labels = [];
 let tempData = [];
 let humData = [];
+let lastKnown = {
+  temperature: 25,
+  humidite: 75,
+  vibration: 3.8,
+  tension: 2.0
+};
 
 // Historique des données (garder 6 dernières mesures)
 const dataHistory = {
@@ -147,24 +153,41 @@ function updateCharts(payload) {
   const jsonDisplay = document.getElementById('jsonData');
   if (jsonDisplay) jsonDisplay.textContent = JSON.stringify(normalized, null, 2);
 
-  const temperature = Number(normalized.temperature);
-  const humidite = Number(normalized.humidite);
-  const vibration = Number(normalized.vibration);
-  const tension = Number(normalized.tension);
+  const pickNumber = (...values) => {
+    for (const value of values) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return NaN;
+  };
+
+  const temperature = pickNumber(normalized.temperature, normalized.temp);
+  const humidite = pickNumber(normalized.humidite, normalized.humidity, normalized.hum);
+  const vibration = pickNumber(normalized.vibration, normalized.vib);
+  const tension = pickNumber(normalized.tension, normalized.sound);
 
   if (!Number.isFinite(temperature)) return;
 
+  if (Number.isFinite(temperature)) lastKnown.temperature = temperature;
+  if (Number.isFinite(humidite)) lastKnown.humidite = humidite;
+  if (Number.isFinite(vibration)) lastKnown.vibration = vibration;
+  if (Number.isFinite(tension)) lastKnown.tension = tension;
+
+  const safeHumidite = Number.isFinite(humidite) ? humidite : lastKnown.humidite;
+  const safeVibration = Number.isFinite(vibration) ? vibration : lastKnown.vibration;
+  const safeTension = Number.isFinite(tension) ? tension : lastKnown.tension;
+
   // Mise à jour des affichages actuels
   if (tempEl) tempEl.textContent = temperature.toFixed(2) + " °C";
-  if (humEl) humEl.textContent = humidite.toFixed(2) + " %";
-  if (vibEl) vibEl.textContent = vibration.toFixed(2) + " m/s²";
-  if (soundEl) soundEl.textContent = tension.toFixed(2) + " V";
+  if (humEl) humEl.textContent = safeHumidite.toFixed(2) + " %";
+  if (vibEl) vibEl.textContent = safeVibration.toFixed(2) + " m/s²";
+  if (soundEl) soundEl.textContent = safeTension.toFixed(2) + " V";
 
   // Mise à jour avec timestamp
   const time = new Date().toLocaleTimeString();
   labels.push(time);
   tempData.push(temperature);
-  humData.push(humidite);
+  humData.push(safeHumidite);
 
   if (labels.length > 12) {
     labels.shift();
@@ -174,11 +197,11 @@ function updateCharts(payload) {
 
   dataHistory.temperature.push(temperature);
   dataHistory.temperature.shift();
-  dataHistory.humidite.push(humidite);
+  dataHistory.humidite.push(safeHumidite);
   dataHistory.humidite.shift();
-  dataHistory.vibration.push(vibration);
+  dataHistory.vibration.push(safeVibration);
   dataHistory.vibration.shift();
-  dataHistory.tension.push(tension);
+  dataHistory.tension.push(safeTension);
   dataHistory.tension.shift();
 
   if (tempChart) {
