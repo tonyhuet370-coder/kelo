@@ -103,6 +103,19 @@ const soundChart = createLineChart(
 );
 
 let mqttClient = null;
+let fallbackTimer = null;
+
+function isChartUsable(chart) {
+  return Boolean(chart && chart.canvas && chart.canvas.isConnected);
+}
+
+function updateChartIfUsable(chart, nextData) {
+  if (!isChartUsable(chart)) return;
+  if (Array.isArray(nextData)) {
+    chart.data.datasets[0].data = nextData;
+  }
+  chart.update();
+}
 
 function updateData() {
   const data = {
@@ -133,16 +146,10 @@ function updateData() {
   dataHistory.tension.push(parseFloat(data.sound));
   dataHistory.tension.shift();
 
-  if (tempChart) tempChart.update();
-  if (humChart) humChart.update();
-  if (vibrationChart) {
-    vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
-    vibrationChart.update();
-  }
-  if (soundChart) {
-    soundChart.data.datasets[0].data = [...dataHistory.tension];
-    soundChart.update();
-  }
+  updateChartIfUsable(tempChart);
+  updateChartIfUsable(humChart);
+  updateChartIfUsable(vibrationChart, [...dataHistory.vibration]);
+  updateChartIfUsable(soundChart, [...dataHistory.tension]);
 }
 
 function updateCharts(payload) {
@@ -204,22 +211,10 @@ function updateCharts(payload) {
   dataHistory.tension.push(safeTension);
   dataHistory.tension.shift();
 
-  if (tempChart) {
-    tempChart.data.datasets[0].data = [...tempData];
-    tempChart.update();
-  }
-  if (humChart) {
-    humChart.data.datasets[0].data = [...humData];
-    humChart.update();
-  }
-  if (vibrationChart) {
-    vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
-    vibrationChart.update();
-  }
-  if (soundChart) {
-    soundChart.data.datasets[0].data = [...dataHistory.tension];
-    soundChart.update();
-  }
+  updateChartIfUsable(tempChart, [...tempData]);
+  updateChartIfUsable(humChart, [...humData]);
+  updateChartIfUsable(vibrationChart, [...dataHistory.vibration]);
+  updateChartIfUsable(soundChart, [...dataHistory.tension]);
 }
 
 // Gestion de la configuration de l'API
@@ -247,9 +242,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Démarrer la mise à jour des données (fallback si MQTT non connecté)
-  setInterval(updateData, 3000);
+  fallbackTimer = setInterval(updateData, 3000);
   updateData();
 });
+
+function stopRealtimeUpdates() {
+  if (fallbackTimer) {
+    clearInterval(fallbackTimer);
+    fallbackTimer = null;
+  }
+
+  if (mqttClient) {
+    try {
+      mqttClient.end(true);
+    } catch (_err) {
+      // noop
+    }
+    mqttClient = null;
+  }
+}
+
+window.addEventListener('beforeunload', stopRealtimeUpdates);
+window.addEventListener('pagehide', stopRealtimeUpdates);
 
 function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
   const statusEl = document.getElementById('apiStatus');
