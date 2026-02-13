@@ -91,6 +91,19 @@ docker-compose up -d
 http://WEB_IP
 ```
 
+#### 5. Accéder à Grafana (optionnel)
+```
+http://WEB_IP:3000
+```
+
+Identifiants par défaut:
+- Utilisateur: `admin`
+- Mot de passe: `admin`
+
+Vous pouvez personnaliser ces identifiants via les variables d'environnement:
+- `GRAFANA_ADMIN_USER`
+- `GRAFANA_ADMIN_PASSWORD`
+
 ---
 
 ## Configuration du Dashboard

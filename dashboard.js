@@ -1,12 +1,11 @@
 // Configuration MQTT WebSocket (direct broker)
 // Ex: ws://<IP_BROKER>:9001
-const DEFAULT_MQTT_WS_URL = (window.location.hostname === 'localhost')
-  ? 'ws://127.0.0.1:9001'
-  : 'ws://127.0.0.1:9001';
+const MQTT_WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const DEFAULT_MQTT_WS_URL = `${MQTT_WS_PROTOCOL}//${window.location.hostname}:9001`;
 const DEFAULT_MQTT_TOPIC = 'kelo/nid/A12/telemetry';
 const MQTT_WS_URL = localStorage.getItem('mqttWsUrl') || DEFAULT_MQTT_WS_URL;
 const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
-const DEFAULT_GRAFANA_URL = localStorage.getItem('grafanaUrl') || 'http://localhost:3000';
+const DEFAULT_GRAFANA_URL = localStorage.getItem('grafanaUrl') || `${window.location.protocol}//${window.location.hostname}:3000`;
 const DEFAULT_GRAFANA_UID = localStorage.getItem('grafanaUid') || '';
 const DEFAULT_GRAFANA_TEMP_PANEL = localStorage.getItem('grafanaTempPanel') || '1';
 const DEFAULT_GRAFANA_HUM_PANEL = localStorage.getItem('grafanaHumPanel') || '2';

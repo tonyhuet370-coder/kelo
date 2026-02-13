@@ -58,7 +58,7 @@
         <h2>⚙️ Configuration MQTT</h2>
         <div style="font-size: 14px;">
           <label>URL WebSocket MQTT:</label><br>
-          <input type="text" id="apiUrlInput" placeholder="ws://localhost:9001" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
+          <input type="text" id="apiUrlInput" placeholder="ws://192.168.62.3:9001" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
           <label>Topic MQTT:</label><br>
           <input type="text" id="mqttTopicInput" placeholder="kelo/nid/A12/telemetry" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
           <button id="saveApiBtn" style="padding: 8px 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px;">Enregistrer</button>
@@ -77,7 +77,7 @@
         <h2>📊 Configuration Grafana</h2>
         <div style="font-size: 14px;">
           <label>URL Grafana:</label><br>
-          <input type="text" id="grafanaUrlInput" placeholder="http://localhost:3000" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
+          <input type="text" id="grafanaUrlInput" placeholder="http://192.168.62.3:3000" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
           <label>Dashboard UID:</label><br>
           <input type="text" id="grafanaUidInput" placeholder="xxxxxxx" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
           <label>Panel Température (ID):</label><br>
@@ -132,6 +132,6 @@
     </div>
   </footer>
 
-  <script src="dashboard.js?v=20260213-5"></script>
+  <script src="dashboard.js?v=20260213-6"></script>
 </body>
 </html>
