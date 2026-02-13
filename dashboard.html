@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Tableau de bord - Kélonia</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260213-modern-1">
   <script src="vendor/chart.min.js"></script>
   <script src="vendor/mqtt.min.js"></script>
 </head>
@@ -56,19 +56,19 @@
     <div class="container dashboard-grid">
       <section class="card">
         <h2>⚙️ Configuration MQTT</h2>
-        <div style="font-size: 14px;">
+        <div>
           <label>URL WebSocket MQTT:</label><br>
-          <input type="text" id="apiUrlInput" placeholder="ws://192.168.62.3:9001" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
+          <input type="text" id="apiUrlInput" placeholder="ws://192.168.62.3:9001">
           <label>Topic MQTT:</label><br>
-          <input type="text" id="mqttTopicInput" placeholder="kelo/nid/A12/telemetry" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
-          <button id="saveApiBtn" style="padding: 8px 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px;">Enregistrer</button>
-          <p id="apiStatus" style="margin: 8px 0; font-size: 12px; color: #4CAF50;">✓ MQTT prêt</p>
+          <input type="text" id="mqttTopicInput" placeholder="kelo/nid/A12/telemetry">
+          <button id="saveApiBtn">Enregistrer</button>
+          <p id="apiStatus">✓ MQTT prêt</p>
         </div>
       </section>
 
       <section class="card">
         <h2>Données actuelles</h2>
-        <div id="dataDisplay" style="font-family: monospace; font-size: 13px; overflow-x: auto;">
+        <div id="dataDisplay">
           <pre id="jsonData">Chargement...</pre>
         </div>
       </section>
