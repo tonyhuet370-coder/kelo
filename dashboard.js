@@ -6,6 +6,10 @@ const DEFAULT_MQTT_WS_URL = (window.location.hostname === 'localhost')
 const DEFAULT_MQTT_TOPIC = 'kelo/nid/A12/telemetry';
 const MQTT_WS_URL = localStorage.getItem('mqttWsUrl') || DEFAULT_MQTT_WS_URL;
 const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
+const DEFAULT_GRAFANA_URL = localStorage.getItem('grafanaUrl') || 'http://localhost:3000';
+const DEFAULT_GRAFANA_UID = localStorage.getItem('grafanaUid') || '';
+const DEFAULT_GRAFANA_TEMP_PANEL = localStorage.getItem('grafanaTempPanel') || '1';
+const DEFAULT_GRAFANA_HUM_PANEL = localStorage.getItem('grafanaHumPanel') || '2';
 
 // Éléments HTML pour les valeurs actuelles
 let tempEl = null;
@@ -246,9 +250,39 @@ function initDashboard() {
   const topicInput = document.getElementById('mqttTopicInput');
   const saveApiBtn = document.getElementById('saveApiBtn');
   const apiStatus = document.getElementById('apiStatus');
+  const grafanaUrlInput = document.getElementById('grafanaUrlInput');
+  const grafanaUidInput = document.getElementById('grafanaUidInput');
+  const grafanaTempPanelInput = document.getElementById('grafanaTempPanelInput');
+  const grafanaHumPanelInput = document.getElementById('grafanaHumPanelInput');
+  const saveGrafanaBtn = document.getElementById('saveGrafanaBtn');
 
   if (apiUrlInput) apiUrlInput.value = MQTT_WS_URL;
   if (topicInput) topicInput.value = MQTT_TOPIC;
+  if (grafanaUrlInput) grafanaUrlInput.value = DEFAULT_GRAFANA_URL;
+  if (grafanaUidInput) grafanaUidInput.value = DEFAULT_GRAFANA_UID;
+  if (grafanaTempPanelInput) grafanaTempPanelInput.value = DEFAULT_GRAFANA_TEMP_PANEL;
+  if (grafanaHumPanelInput) grafanaHumPanelInput.value = DEFAULT_GRAFANA_HUM_PANEL;
+
+  if (saveGrafanaBtn) {
+    saveGrafanaBtn.addEventListener('click', () => {
+      const baseUrl = grafanaUrlInput ? grafanaUrlInput.value.trim() : '';
+      const dashboardUid = grafanaUidInput ? grafanaUidInput.value.trim() : '';
+      const tempPanelId = grafanaTempPanelInput ? grafanaTempPanelInput.value.trim() : '';
+      const humPanelId = grafanaHumPanelInput ? grafanaHumPanelInput.value.trim() : '';
+
+      if (baseUrl) localStorage.setItem('grafanaUrl', baseUrl);
+      if (dashboardUid) localStorage.setItem('grafanaUid', dashboardUid);
+      if (tempPanelId) localStorage.setItem('grafanaTempPanel', tempPanelId);
+      if (humPanelId) localStorage.setItem('grafanaHumPanel', humPanelId);
+
+      loadGrafanaPanels({
+        baseUrl: baseUrl || DEFAULT_GRAFANA_URL,
+        dashboardUid: dashboardUid || DEFAULT_GRAFANA_UID,
+        tempPanelId: tempPanelId || DEFAULT_GRAFANA_TEMP_PANEL,
+        humPanelId: humPanelId || DEFAULT_GRAFANA_HUM_PANEL
+      });
+    });
+  }
 
   if (saveApiBtn) {
     saveApiBtn.addEventListener('click', () => {
@@ -269,6 +303,12 @@ function initDashboard() {
     fallbackTimer = setInterval(updateData, 3000);
   }
   updateData();
+  loadGrafanaPanels({
+    baseUrl: DEFAULT_GRAFANA_URL,
+    dashboardUid: DEFAULT_GRAFANA_UID,
+    tempPanelId: DEFAULT_GRAFANA_TEMP_PANEL,
+    humPanelId: DEFAULT_GRAFANA_HUM_PANEL
+  });
   startMqtt();
 }
 
@@ -296,6 +336,52 @@ function stopRealtimeUpdates() {
 
 window.addEventListener('beforeunload', stopRealtimeUpdates);
 window.addEventListener('pagehide', stopRealtimeUpdates);
+
+function buildGrafanaPanelUrl(baseUrl, dashboardUid, panelId) {
+  const normalizedBase = baseUrl.replace(/\/$/, '');
+  const params = new URLSearchParams({
+    orgId: '1',
+    panelId: String(panelId),
+    from: 'now-6h',
+    to: 'now',
+    theme: 'light'
+  });
+  return `${normalizedBase}/d-solo/${dashboardUid}/kelo?${params.toString()}`;
+}
+
+function loadGrafanaPanels(config) {
+  const { baseUrl, dashboardUid, tempPanelId, humPanelId } = config;
+  const tempFrame = document.getElementById('grafanaTempFrame');
+  const humFrame = document.getElementById('grafanaHumFrame');
+  const statusEl = document.getElementById('grafanaStatus');
+
+  if (!tempFrame || !humFrame) return;
+
+  if (!baseUrl || !dashboardUid || !tempPanelId || !humPanelId) {
+    tempFrame.removeAttribute('src');
+    humFrame.removeAttribute('src');
+    if (statusEl) {
+      statusEl.textContent = '⚠️ URL, UID et panel IDs requis';
+      statusEl.style.color = '#FF6B6B';
+    }
+    return;
+  }
+
+  try {
+    tempFrame.src = buildGrafanaPanelUrl(baseUrl, dashboardUid, tempPanelId);
+    humFrame.src = buildGrafanaPanelUrl(baseUrl, dashboardUid, humPanelId);
+    if (statusEl) {
+      statusEl.textContent = '✓ Panels Grafana chargés';
+      statusEl.style.color = '#4CAF50';
+    }
+  } catch (err) {
+    console.error('Grafana embed error', err);
+    if (statusEl) {
+      statusEl.textContent = '❌ Erreur URL Grafana';
+      statusEl.style.color = '#FF6B6B';
+    }
+  }
+}
 
 function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
   const statusEl = document.getElementById('apiStatus');
