@@ -25,8 +25,6 @@ let lastKnown = {
 
 // Historique des données (garder 6 dernières mesures)
 const dataHistory = {
-  temperature: [25, 25.5, 26, 26.5, 27, 27.5],
-  humidite: [75, 76, 77, 78, 79, 80],
   vibration: [3.7, 3.8, 3.9, 3.85, 4.0, 4.1],
   tension: [1, 1.5, 2.0, 2.2, 2.5, 2.8]
 };
@@ -222,10 +220,6 @@ function updateCharts(payload) {
     humData.shift();
   }
 
-  dataHistory.temperature.push(temperature);
-  dataHistory.temperature.shift();
-  dataHistory.humidite.push(safeHumidite);
-  dataHistory.humidite.shift();
   dataHistory.vibration.push(safeVibration);
   dataHistory.vibration.shift();
   dataHistory.tension.push(safeTension);
