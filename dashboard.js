@@ -8,10 +8,10 @@ const MQTT_WS_URL = localStorage.getItem('mqttWsUrl') || DEFAULT_MQTT_WS_URL;
 const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
 
 // Éléments HTML pour les valeurs actuelles
-const tempEl = document.getElementById("temp-value");
-const humEl = document.getElementById("hum-value");
-const vibEl = document.getElementById("vib-value");
-const soundEl = document.getElementById("sound-value");
+let tempEl = null;
+let humEl = null;
+let vibEl = null;
+let soundEl = null;
 
 // Données de base
 let labels = [];
@@ -33,7 +33,9 @@ const dataHistory = {
 };
 
 function createLineChart(canvasId, label, color, data) {
-  const ctx = document.getElementById(canvasId);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || typeof canvas.getContext !== 'function') return null;
+  const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   return new Chart(ctx, {
     type: 'line',
@@ -60,53 +62,69 @@ function createLineChart(canvasId, label, color, data) {
   });
 }
 
-const tempChartCanvas = document.getElementById("tempChart");
-const tempChart = tempChartCanvas ? new Chart(tempChartCanvas, {
-  type: "line",
-  data: {
-    labels: labels,
-    datasets: [{
-      label: "Température (°C)",
-      data: tempData,
-      borderColor: "#4bc0c0",
-      tension: 0.3
-    }]
-  }
-}) : null;
-
-const humChartCanvas = document.getElementById("humChart");
-const humChart = humChartCanvas ? new Chart(humChartCanvas, {
-  type: "line",
-  data: {
-    labels: labels,
-    datasets: [{
-      label: "Humidité (%)",
-      data: humData,
-      borderColor: "#ffcc00",
-      tension: 0.3
-    }]
-  }
-}) : null;
-
-const vibrationChart = createLineChart(
-  'vibrationChart',
-  'Vibrations (m/s²)',
-  'rgba(255, 206, 86, 1)',
-  [...dataHistory.vibration]
-);
-
-const soundChart = createLineChart(
-  'soundChart',
-  'Tension (V)',
-  'rgba(75, 192, 192, 1)',
-  [...dataHistory.tension]
-);
+let tempChart = null;
+let humChart = null;
+let vibrationChart = null;
+let soundChart = null;
 
 let mqttClient = null;
 let fallbackTimer = null;
 
+function initDomRefs() {
+  tempEl = document.getElementById("temp-value");
+  humEl = document.getElementById("hum-value");
+  vibEl = document.getElementById("vib-value");
+  soundEl = document.getElementById("sound-value");
+}
+
+function initCharts() {
+  if (!window.Chart) return;
+
+  if (!tempChart) {
+    tempChart = createLineChart(
+      'tempChart',
+      'Température (°C)',
+      'rgba(75, 192, 192, 1)',
+      tempData
+    );
+  }
+
+  if (!humChart) {
+    humChart = createLineChart(
+      'humChart',
+      'Humidité (%)',
+      'rgba(255, 204, 0, 1)',
+      humData
+    );
+  }
+
+  if (!vibrationChart) {
+    vibrationChart = createLineChart(
+      'vibrationChart',
+      'Vibrations (m/s²)',
+      'rgba(255, 206, 86, 1)',
+      [...dataHistory.vibration]
+    );
+  }
+
+  if (!soundChart) {
+    soundChart = createLineChart(
+      'soundChart',
+      'Tension (V)',
+      'rgba(75, 192, 192, 1)',
+      [...dataHistory.tension]
+    );
+  }
+}
+
+function ensureChartsReady() {
+  if (!isChartUsable(tempChart) || !isChartUsable(humChart) || !isChartUsable(vibrationChart) || !isChartUsable(soundChart)) {
+    initCharts();
+  }
+}
+
 function isChartUsable(chart) {
-  return Boolean(chart && chart.canvas && chart.canvas.isConnected);
+  return Boolean(chart && chart.canvas && chart.canvas.isConnected && chart.ctx);
 }
 
 function updateChartIfUsable(chart, nextData) {
@@ -118,6 +136,8 @@ function updateChartIfUsable(chart, nextData) {
 }
 
 function updateData() {
+  ensureChartsReady();
+
   const data = {
     temp: (24 + Math.random() * 2).toFixed(2),
     hum: (70 + Math.random() * 5).toFixed(2),
@@ -154,6 +174,7 @@ function updateData() {
 
 function updateCharts(payload) {
   if (!payload) return;
+  ensureChartsReady();
 
   const normalized = payload.data ?? payload;
   if (!normalized || typeof normalized !== 'object') return;
@@ -217,8 +238,10 @@ function updateCharts(payload) {
   updateChartIfUsable(soundChart, [...dataHistory.tension]);
 }
 
-// Gestion de la configuration de l'API
-document.addEventListener('DOMContentLoaded', () => {
+function initDashboard() {
+  initDomRefs();
+  initCharts();
+
   const apiUrlInput = document.getElementById('apiUrlInput');
   const topicInput = document.getElementById('mqttTopicInput');
   const saveApiBtn = document.getElementById('saveApiBtn');
@@ -242,9 +265,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Démarrer la mise à jour des données (fallback si MQTT non connecté)
-  fallbackTimer = setInterval(updateData, 3000);
+  if (!fallbackTimer) {
+    fallbackTimer = setInterval(updateData, 3000);
+  }
   updateData();
-});
+  startMqtt();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDashboard, { once: true });
+} else {
+  initDashboard();
+}
 
 function stopRealtimeUpdates() {
   if (fallbackTimer) {
@@ -333,4 +365,3 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
   });
 }
 
-startMqtt();
