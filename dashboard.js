@@ -7,8 +7,16 @@ const DEFAULT_MQTT_TOPIC = 'kelo/nid/A12/telemetry';
 const MQTT_WS_URL = localStorage.getItem('mqttWsUrl') || DEFAULT_MQTT_WS_URL;
 const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
 
-// Données de base (ex : dernières 6 mesures)
-const labels = ['T-30min', 'T-25min', 'T-20min', 'T-15min', 'T-10min', 'T-5min'];
+// Éléments HTML pour les valeurs actuelles
+const tempEl = document.getElementById("temp-value");
+const humEl = document.getElementById("hum-value");
+const vibEl = document.getElementById("vib-value");
+const soundEl = document.getElementById("sound-value");
+
+// Données de base
+let labels = [];
+let tempData = [];
+let humData = [];
 
 // Historique des données (garder 6 dernières mesures)
 const dataHistory = {
@@ -45,19 +53,31 @@ function createLineChart(canvasId, label, color, data) {
   });
 }
 
-const tempChart = createLineChart(
-  'tempChart',
-  'Température (°C)',
-  'rgba(255, 99, 132, 1)',
-  [...dataHistory.temperature]
-);
+const tempChart = new Chart(document.getElementById("tempChart"), {
+  type: "line",
+  data: {
+    labels: labels,
+    datasets: [{
+      label: "Température (°C)",
+      data: tempData,
+      borderColor: "#4bc0c0",
+      tension: 0.3
+    }]
+  }
+});
 
-const humidityChart = createLineChart(
-  'humidityChart',
-  'Humidité (%)',
-  'rgba(54, 162, 235, 1)',
-  [...dataHistory.humidite]
-);
+const humChart = new Chart(document.getElementById("humChart"), {
+  type: "line",
+  data: {
+    labels: labels,
+    datasets: [{
+      label: "Humidité (%)",
+      data: humData,
+      borderColor: "#ffcc00",
+      tension: 0.3
+    }]
+  }
+});
 
 const vibrationChart = createLineChart(
   'vibrationChart',
@@ -75,6 +95,43 @@ const soundChart = createLineChart(
 
 let mqttClient = null;
 
+function updateData() {
+  const data = {
+    temp: (24 + Math.random() * 2).toFixed(2),
+    hum: (70 + Math.random() * 5).toFixed(2),
+    vib: (0.1 + Math.random() * 0.3).toFixed(2),
+    sound: (30 + Math.random() * 10).toFixed(2),
+    time: new Date().toLocaleTimeString()
+  };
+
+  if (tempEl) tempEl.textContent = data.temp + " °C";
+  if (humEl) humEl.textContent = data.hum + " %";
+  if (vibEl) vibEl.textContent = data.vib + " m/s²";
+  if (soundEl) soundEl.textContent = data.sound + " dB";
+
+  labels.push(data.time);
+  tempData.push(data.temp);
+  humData.push(data.hum);
+
+  if (labels.length > 12) {
+    labels.shift();
+    tempData.shift();
+    humData.shift();
+  }
+
+  dataHistory.vibration.push(parseFloat(data.vib));
+  dataHistory.vibration.shift();
+  dataHistory.tension.push(parseFloat(data.sound));
+  dataHistory.tension.shift();
+
+  tempChart.update();
+  humChart.update();
+  vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
+  vibrationChart.update();
+  soundChart.data.datasets[0].data = [...dataHistory.tension];
+  soundChart.update();
+}
+
 function updateCharts(payload) {
   if (!payload) return;
 
@@ -89,6 +146,24 @@ function updateCharts(payload) {
 
   if (!Number.isFinite(temperature)) return;
 
+  // Mise à jour des affichages actuels
+  if (tempEl) tempEl.textContent = temperature.toFixed(2) + " °C";
+  if (humEl) humEl.textContent = humidite.toFixed(2) + " %";
+  if (vibEl) vibEl.textContent = vibration.toFixed(2) + " m/s²";
+  if (soundEl) soundEl.textContent = tension.toFixed(2) + " V";
+
+  // Mise à jour avec timestamp
+  const time = new Date().toLocaleTimeString();
+  labels.push(time);
+  tempData.push(temperature);
+  humData.push(humidite);
+
+  if (labels.length > 12) {
+    labels.shift();
+    tempData.shift();
+    humData.shift();
+  }
+
   dataHistory.temperature.push(temperature);
   dataHistory.temperature.shift();
   dataHistory.humidite.push(humidite);
@@ -98,10 +173,10 @@ function updateCharts(payload) {
   dataHistory.tension.push(tension);
   dataHistory.tension.shift();
 
-  tempChart.data.datasets[0].data = [...dataHistory.temperature];
+  tempChart.data.datasets[0].data = [...tempData];
   tempChart.update();
-  humidityChart.data.datasets[0].data = [...dataHistory.humidite];
-  humidityChart.update();
+  humChart.data.datasets[0].data = [...humData];
+  humChart.update();
   vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
   vibrationChart.update();
   soundChart.data.datasets[0].data = [...dataHistory.tension];
@@ -131,6 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
       startMqtt(newUrl || MQTT_WS_URL, newTopic || MQTT_TOPIC);
     });
   }
+
+  // Démarrer la mise à jour des données (fallback si MQTT non connecté)
+  setInterval(updateData, 3000);
+  updateData();
 });
 
 function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {

@@ -26,6 +26,33 @@
   </header>
 
   <main class="dashboard">
+    <h1>Tableau de bord des nids de tortues</h1>
+    <p class="subtitle">Suivi en temps réel des paramètres environnementaux</p>
+
+    <!-- Cartes de valeurs -->
+    <section class="cards">
+      <div class="card">
+        <h2>Température</h2>
+        <p id="temp-value" class="value">-- °C</p>
+      </div>
+
+      <div class="card">
+        <h2>Humidité</h2>
+        <p id="hum-value" class="value">-- %</p>
+      </div>
+
+      <div class="card">
+        <h2>Vibrations</h2>
+        <p id="vib-value" class="value">-- m/s²</p>
+      </div>
+
+      <div class="card">
+        <h2>Niveau sonore</h2>
+        <p id="sound-value" class="value">-- dB</p>
+      </div>
+    </section>
+
+    <!-- Configuration et données -->
     <div class="container dashboard-grid">
       <section class="card">
         <h2>⚙️ Configuration MQTT</h2>
@@ -45,27 +72,30 @@
           <pre id="jsonData">Chargement...</pre>
         </div>
       </section>
-
-      <section class="card">
-        <h2>Température du nid</h2>
-        <canvas id="tempChart"></canvas>
-      </section>
-
-      <section class="card">
-        <h2>Humidité</h2>
-        <canvas id="humidityChart"></canvas>
-      </section>
-
-      <section class="card">
-        <h2>Vibrations</h2>
-        <canvas id="vibrationChart"></canvas>
-      </section>
-
-      <section class="card">
-        <h2>Tension (V)</h2>
-        <canvas id="soundChart"></canvas>
-      </section>
     </div>
+
+    <!-- Graphiques -->
+    <section class="charts">
+      <div class="chart-container">
+        <h3>Évolution de la température</h3>
+        <canvas id="tempChart"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <h3>Humidité du nid</h3>
+        <canvas id="humChart"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <h3>Vibrations</h3>
+        <canvas id="vibrationChart"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <h3>Tension (V)</h3>
+        <canvas id="soundChart"></canvas>
+      </div>
+    </section>
   </main>
 
   <footer class="site-footer">
