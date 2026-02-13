@@ -72,35 +72,7 @@
           <pre id="jsonData">Chargement...</pre>
         </div>
       </section>
-
-      <section class="card">
-        <h2>📊 Configuration Grafana</h2>
-        <div style="font-size: 14px;">
-          <label>URL Grafana:</label><br>
-          <input type="text" id="grafanaUrlInput" placeholder="http://192.168.62.3:3000" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
-          <label>Dashboard UID:</label><br>
-          <input type="text" id="grafanaUidInput" placeholder="xxxxxxx" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
-          <label>Panel Température (ID):</label><br>
-          <input type="number" id="grafanaTempPanelInput" placeholder="1" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
-          <label>Panel Humidité (ID):</label><br>
-          <input type="number" id="grafanaHumPanelInput" placeholder="2" style="width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box;">
-          <button id="saveGrafanaBtn" style="padding: 8px 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px;">Charger Grafana</button>
-          <p id="grafanaStatus" style="margin: 8px 0; font-size: 12px; color: #4CAF50;">ℹ️ Configurez Grafana pour afficher les panels</p>
-        </div>
-      </section>
     </div>
-
-    <section class="charts" id="grafanaSection">
-      <div class="chart-container">
-        <h3>Grafana · Température</h3>
-        <iframe id="grafanaTempFrame" title="Grafana Température" style="width: 100%; height: 320px; border: 0; border-radius: 8px;" loading="lazy"></iframe>
-      </div>
-
-      <div class="chart-container">
-        <h3>Grafana · Humidité</h3>
-        <iframe id="grafanaHumFrame" title="Grafana Humidité" style="width: 100%; height: 320px; border: 0; border-radius: 8px;" loading="lazy"></iframe>
-      </div>
-    </section>
 
     <!-- Graphiques -->
     <section class="charts">
@@ -132,6 +104,6 @@
     </div>
   </footer>
 
-  <script src="dashboard.js?v=20260213-6"></script>
+  <script src="dashboard.js?v=20260213-7"></script>
 </body>
 </html>
