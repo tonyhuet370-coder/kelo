@@ -28,6 +28,7 @@ const dataHistory = {
 
 function createLineChart(canvasId, label, color, data) {
   const ctx = document.getElementById(canvasId);
+  if (!ctx) return null;
   return new Chart(ctx, {
     type: 'line',
     data: {
@@ -53,7 +54,8 @@ function createLineChart(canvasId, label, color, data) {
   });
 }
 
-const tempChart = new Chart(document.getElementById("tempChart"), {
+const tempChartCanvas = document.getElementById("tempChart");
+const tempChart = tempChartCanvas ? new Chart(tempChartCanvas, {
   type: "line",
   data: {
     labels: labels,
@@ -64,9 +66,10 @@ const tempChart = new Chart(document.getElementById("tempChart"), {
       tension: 0.3
     }]
   }
-});
+}) : null;
 
-const humChart = new Chart(document.getElementById("humChart"), {
+const humChartCanvas = document.getElementById("humChart");
+const humChart = humChartCanvas ? new Chart(humChartCanvas, {
   type: "line",
   data: {
     labels: labels,
@@ -77,7 +80,7 @@ const humChart = new Chart(document.getElementById("humChart"), {
       tension: 0.3
     }]
   }
-});
+}) : null;
 
 const vibrationChart = createLineChart(
   'vibrationChart',
@@ -124,18 +127,23 @@ function updateData() {
   dataHistory.tension.push(parseFloat(data.sound));
   dataHistory.tension.shift();
 
-  tempChart.update();
-  humChart.update();
-  vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
-  vibrationChart.update();
-  soundChart.data.datasets[0].data = [...dataHistory.tension];
-  soundChart.update();
+  if (tempChart) tempChart.update();
+  if (humChart) humChart.update();
+  if (vibrationChart) {
+    vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
+    vibrationChart.update();
+  }
+  if (soundChart) {
+    soundChart.data.datasets[0].data = [...dataHistory.tension];
+    soundChart.update();
+  }
 }
 
 function updateCharts(payload) {
   if (!payload) return;
 
-  const normalized = payload.data ? payload.data : payload;
+  const normalized = payload.data ?? payload;
+  if (!normalized || typeof normalized !== 'object') return;
   const jsonDisplay = document.getElementById('jsonData');
   if (jsonDisplay) jsonDisplay.textContent = JSON.stringify(normalized, null, 2);
 
@@ -173,14 +181,22 @@ function updateCharts(payload) {
   dataHistory.tension.push(tension);
   dataHistory.tension.shift();
 
-  tempChart.data.datasets[0].data = [...tempData];
-  tempChart.update();
-  humChart.data.datasets[0].data = [...humData];
-  humChart.update();
-  vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
-  vibrationChart.update();
-  soundChart.data.datasets[0].data = [...dataHistory.tension];
-  soundChart.update();
+  if (tempChart) {
+    tempChart.data.datasets[0].data = [...tempData];
+    tempChart.update();
+  }
+  if (humChart) {
+    humChart.data.datasets[0].data = [...humData];
+    humChart.update();
+  }
+  if (vibrationChart) {
+    vibrationChart.data.datasets[0].data = [...dataHistory.vibration];
+    vibrationChart.update();
+  }
+  if (soundChart) {
+    soundChart.data.datasets[0].data = [...dataHistory.tension];
+    soundChart.update();
+  }
 }
 
 // Gestion de la configuration de l'API
@@ -252,15 +268,22 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
   });
 
   mqttClient.on('message', (_topic, message) => {
+    let payload;
     try {
-      const payload = JSON.parse(message.toString());
+      payload = JSON.parse(message.toString());
+    } catch (err) {
+      console.error('MQTT JSON parse error', err);
+      return;
+    }
+
+    try {
       if (statusEl) {
         statusEl.textContent = '✓ MQTT connecté (message reçu)';
         statusEl.style.color = '#4CAF50';
       }
       updateCharts(payload);
     } catch (err) {
-      console.error('MQTT parse error', err);
+      console.error('MQTT chart update error', err);
     }
   });
 
