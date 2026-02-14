@@ -211,8 +211,14 @@ function updateCharts(payload) {
 
   updateChartIfUsable(tempChart, [...tempData]);
   updateChartIfUsable(humChart, [...humData]);
-  updateChartIfUsable(vibrationChart, [...dataHistory.vibration], [...vibrationLabels]);
-  updateChartIfUsable(soundChart, [...dataHistory.tension], [...tensionLabels]);
+
+  if (hasVibration) {
+    updateChartIfUsable(vibrationChart, [...dataHistory.vibration], [...vibrationLabels]);
+  }
+
+  if (hasTension) {
+    updateChartIfUsable(soundChart, [...dataHistory.tension], [...tensionLabels]);
+  }
 }
 
 function initDashboard() {
