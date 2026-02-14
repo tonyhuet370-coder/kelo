@@ -16,6 +16,8 @@ let soundEl = null;
 let labels = [];
 let tempData = [];
 let humData = [];
+let vibrationLabels = [];
+let tensionLabels = [];
 let lastKnown = {
   temperature: 25,
   humidite: 75,
@@ -25,11 +27,11 @@ let lastKnown = {
 
 // Historique des données (garder 6 dernières mesures)
 const dataHistory = {
-  vibration: [3.7, 3.8, 3.9, 3.85, 4.0, 4.1],
-  tension: [1, 1.5, 2.0, 2.2, 2.5, 2.8]
+  vibration: [],
+  tension: []
 };
 
-function createLineChart(canvasId, label, color, data) {
+function createLineChart(canvasId, label, color, data, chartLabels = labels) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || typeof canvas.getContext !== 'function') return null;
   const ctx = canvas.getContext('2d');
@@ -37,7 +39,7 @@ function createLineChart(canvasId, label, color, data) {
   return new Chart(ctx, {
     type: 'line',
     data: {
-      labels,
+      labels: chartLabels,
       datasets: [{
         label,
         data,
@@ -99,7 +101,8 @@ function initCharts() {
       'vibrationChart',
       'Vibrations (m/s²)',
       'rgba(255, 206, 86, 1)',
-      [...dataHistory.vibration]
+      [...dataHistory.vibration],
+      vibrationLabels
     );
   }
 
@@ -108,7 +111,8 @@ function initCharts() {
       'soundChart',
       'Tension (V)',
       'rgba(75, 192, 192, 1)',
-      [...dataHistory.tension]
+      [...dataHistory.tension],
+      tensionLabels
     );
   }
 }
@@ -123,10 +127,13 @@ function isChartUsable(chart) {
   return Boolean(chart && chart.canvas && chart.canvas.isConnected && chart.ctx);
 }
 
-function updateChartIfUsable(chart, nextData) {
+function updateChartIfUsable(chart, nextData, nextLabels) {
   if (!isChartUsable(chart)) return;
   if (Array.isArray(nextData)) {
     chart.data.datasets[0].data = nextData;
+  }
+  if (Array.isArray(nextLabels)) {
+    chart.data.labels = nextLabels;
   }
   chart.update();
 }
@@ -157,18 +164,21 @@ function updateCharts(payload) {
 
   if (Number.isFinite(temperature)) lastKnown.temperature = temperature;
   if (Number.isFinite(humidite)) lastKnown.humidite = humidite;
-  if (Number.isFinite(vibration)) lastKnown.vibration = vibration;
-  if (Number.isFinite(tension)) lastKnown.tension = tension;
+  const hasVibration = Number.isFinite(vibration);
+  const hasTension = Number.isFinite(tension);
+
+  if (hasVibration) lastKnown.vibration = vibration;
+  if (hasTension) lastKnown.tension = tension;
 
   const safeHumidite = Number.isFinite(humidite) ? humidite : lastKnown.humidite;
-  const safeVibration = Number.isFinite(vibration) ? vibration : lastKnown.vibration;
-  const safeTension = Number.isFinite(tension) ? tension : lastKnown.tension;
+  const safeVibration = hasVibration ? vibration : null;
+  const safeTension = hasTension ? tension : null;
 
   // Mise à jour des affichages actuels
   if (tempEl) tempEl.textContent = temperature.toFixed(2) + " °C";
   if (humEl) humEl.textContent = safeHumidite.toFixed(2) + " %";
-  if (vibEl) vibEl.textContent = safeVibration.toFixed(2) + " m/s²";
-  if (soundEl) soundEl.textContent = safeTension.toFixed(2) + " V";
+  if (vibEl && hasVibration) vibEl.textContent = safeVibration.toFixed(2) + " m/s²";
+  if (soundEl && hasTension) soundEl.textContent = safeTension.toFixed(2) + " V";
 
   // Mise à jour avec timestamp
   const time = new Date().toLocaleTimeString();
@@ -182,15 +192,27 @@ function updateCharts(payload) {
     humData.shift();
   }
 
-  dataHistory.vibration.push(safeVibration);
-  dataHistory.vibration.shift();
-  dataHistory.tension.push(safeTension);
-  dataHistory.tension.shift();
+  if (hasVibration) {
+    dataHistory.vibration.push(safeVibration);
+    vibrationLabels.push(time);
+    if (dataHistory.vibration.length > 12) {
+      dataHistory.vibration.shift();
+      vibrationLabels.shift();
+    }
+  }
+  if (hasTension) {
+    dataHistory.tension.push(safeTension);
+    tensionLabels.push(time);
+    if (dataHistory.tension.length > 12) {
+      dataHistory.tension.shift();
+      tensionLabels.shift();
+    }
+  }
 
   updateChartIfUsable(tempChart, [...tempData]);
   updateChartIfUsable(humChart, [...humData]);
-  updateChartIfUsable(vibrationChart, [...dataHistory.vibration]);
-  updateChartIfUsable(soundChart, [...dataHistory.tension]);
+  updateChartIfUsable(vibrationChart, [...dataHistory.vibration], [...vibrationLabels]);
+  updateChartIfUsable(soundChart, [...dataHistory.tension], [...tensionLabels]);
 }
 
 function initDashboard() {
