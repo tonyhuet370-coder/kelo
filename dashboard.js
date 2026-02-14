@@ -65,7 +65,6 @@ let vibrationChart = null;
 let soundChart = null;
 
 let mqttClient = null;
-let fallbackTimer = null;
 
 function initDomRefs() {
   tempEl = document.getElementById("temp-value");
@@ -130,43 +129,6 @@ function updateChartIfUsable(chart, nextData) {
     chart.data.datasets[0].data = nextData;
   }
   chart.update();
-}
-
-function updateData() {
-  ensureChartsReady();
-
-  const data = {
-    temp: (24 + Math.random() * 2).toFixed(2),
-    hum: (70 + Math.random() * 5).toFixed(2),
-    vib: (0.1 + Math.random() * 0.3).toFixed(2),
-    sound: (30 + Math.random() * 10).toFixed(2),
-    time: new Date().toLocaleTimeString()
-  };
-
-  if (tempEl) tempEl.textContent = data.temp + " °C";
-  if (humEl) humEl.textContent = data.hum + " %";
-  if (vibEl) vibEl.textContent = data.vib + " m/s²";
-  if (soundEl) soundEl.textContent = data.sound + " dB";
-
-  labels.push(data.time);
-  tempData.push(data.temp);
-  humData.push(data.hum);
-
-  if (labels.length > 12) {
-    labels.shift();
-    tempData.shift();
-    humData.shift();
-  }
-
-  dataHistory.vibration.push(parseFloat(data.vib));
-  dataHistory.vibration.shift();
-  dataHistory.tension.push(parseFloat(data.sound));
-  dataHistory.tension.shift();
-
-  updateChartIfUsable(tempChart);
-  updateChartIfUsable(humChart);
-  updateChartIfUsable(vibrationChart, [...dataHistory.vibration]);
-  updateChartIfUsable(soundChart, [...dataHistory.tension]);
 }
 
 function updateCharts(payload) {
@@ -235,33 +197,6 @@ function initDashboard() {
   initDomRefs();
   initCharts();
 
-  const apiUrlInput = document.getElementById('apiUrlInput');
-  const topicInput = document.getElementById('mqttTopicInput');
-  const saveApiBtn = document.getElementById('saveApiBtn');
-  const apiStatus = document.getElementById('apiStatus');
-
-  if (apiUrlInput) apiUrlInput.value = MQTT_WS_URL;
-  if (topicInput) topicInput.value = MQTT_TOPIC;
-
-  if (saveApiBtn) {
-    saveApiBtn.addEventListener('click', () => {
-      const newUrl = apiUrlInput ? apiUrlInput.value.trim() : '';
-      const newTopic = topicInput ? topicInput.value.trim() : '';
-      if (newUrl) localStorage.setItem('mqttWsUrl', newUrl);
-      if (newTopic) localStorage.setItem('mqttTopic', newTopic);
-      if (apiStatus) {
-        apiStatus.textContent = '✓ MQTT configuré';
-        apiStatus.style.color = '#4CAF50';
-      }
-      startMqtt(newUrl || MQTT_WS_URL, newTopic || MQTT_TOPIC);
-    });
-  }
-
-  // Démarrer la mise à jour des données (fallback si MQTT non connecté)
-  if (!fallbackTimer) {
-    fallbackTimer = setInterval(updateData, 3000);
-  }
-  updateData();
   startMqtt();
 }
 
@@ -272,11 +207,6 @@ if (document.readyState === 'loading') {
 }
 
 function stopRealtimeUpdates() {
-  if (fallbackTimer) {
-    clearInterval(fallbackTimer);
-    fallbackTimer = null;
-  }
-
   if (mqttClient) {
     try {
       mqttClient.end(true);
