@@ -50,7 +50,10 @@ function createLineChart(canvasId, label, color, data, chartLabels = labels) {
     },
     options: {
       responsive: true,
-      animation: false,
+      animation: {
+        duration: 450,
+        easing: 'easeOutCubic'
+      },
       plugins: {
         legend: { labels: { color: '#f5f5f5' } }
       },
