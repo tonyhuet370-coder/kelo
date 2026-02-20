@@ -50,6 +50,7 @@ function createLineChart(canvasId, label, color, data, chartLabels = labels) {
     },
     options: {
       responsive: true,
+      animation: false,
       plugins: {
         legend: { labels: { color: '#f5f5f5' } }
       },
@@ -67,6 +68,7 @@ let vibrationChart = null;
 let soundChart = null;
 
 let mqttClient = null;
+let lastPayloadSignature = null;
 
 function initDomRefs() {
   tempEl = document.getElementById("temp-value");
@@ -288,13 +290,20 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
   });
 
   mqttClient.on('message', (_topic, message) => {
+    const payloadText = message.toString();
+    if (payloadText === lastPayloadSignature) {
+      return;
+    }
+
     let payload;
     try {
-      payload = JSON.parse(message.toString());
+      payload = JSON.parse(payloadText);
     } catch (err) {
       console.error('MQTT JSON parse error', err);
       return;
     }
+
+    lastPayloadSignature = payloadText;
 
     try {
       if (statusEl) {
@@ -315,4 +324,5 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
     }
   });
 }
+
 
