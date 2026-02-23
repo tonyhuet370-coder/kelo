@@ -5,7 +5,7 @@ set -e
 
 echo ""
 echo "===================================================="
-echo "🐢 Kelonia - Deployment sur Synology NAS"
+echo " Kelonia - Deployment sur Synology NAS"
 echo "===================================================="
 echo ""
 

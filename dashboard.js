@@ -6,7 +6,7 @@ const DEFAULT_MQTT_TOPIC = 'kelo/nid/A12/telemetry';
 const MQTT_WS_URL = localStorage.getItem('mqttWsUrl') || DEFAULT_MQTT_WS_URL;
 const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
 
-// Éléments HTML pour les valeurs actuelles
+
 let tempEl = null;
 let humEl = null;
 let vibEl = null;

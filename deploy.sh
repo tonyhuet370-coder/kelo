@@ -3,7 +3,7 @@
 
 set -e
 
-echo "🐢 Kélonia - Installation dans la VM"
+echo " Kélonia - Installation dans la VM"
 echo "======================================"
 
 # Vérifier Docker
