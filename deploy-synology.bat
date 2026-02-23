@@ -7,7 +7,7 @@ setlocal enabledelayedexpansion
 cls
 echo.
 echo ====================================================
-echo 🐢 Kelonia - Deployment sur Synology NAS
+echo  Kelonia - Deployment sur Synology NAS
 echo ====================================================
 echo.
 
@@ -22,7 +22,7 @@ if "!WEB_PORT!"=="" set WEB_PORT=8080
 REM Vérifier SSH
 ssh -V >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ❌ SSH n'est pas disponible. Installer OpenSSH ou Git Bash.
+    echo  SSH n'est pas disponible. Installer OpenSSH ou Git Bash.
     pause
     exit /b 1
 )
@@ -36,16 +36,16 @@ echo.
 echo Les deux conteneurs (web + simulateur) seront déployés!
 
 REM Copier les fichiers
-echo 📁 Copie des fichiers vers le NAS...
+echo  Copie des fichiers vers le NAS...
 scp -r . !NAS_USER!@!NAS_IP!:/volume1/docker/kelo/
 if %errorlevel% neq 0 (
-    echo ❌ Erreur lors de la copie
+    echo  Erreur lors de la copie
     pause
     exit /b 1
 )
 
 REM Configuration du .env
-echo ⚙️  Configuration du .env...
+echo  Configuration du .env...
 ssh !NAS_USER!@!NAS_IP! << EOF
 cd /volume1/docker/kelo
 cat > .env << INNER_EOF
@@ -56,7 +56,7 @@ echo ✓ .env créé
 EOF
 
 REM Démarrer Docker
-echo 🚀 Démarrage des conteneurs...
+echo  Démarrage des conteneurs...
 ssh !NAS_USER!@!NAS_IP! << EOF
 cd /volume1/docker/kelo
 docker-compose down 2>/dev/null
@@ -66,12 +66,12 @@ docker-compose ps
 EOF
 
 echo.
-echo ✅ Déploiement réussi!
+echo  Déploiement réussi!
 echo.
-echo 📍 Accès au site:
+echo  Accès au site:
 echo    http://!NAS_IP!:!WEB_PORT!
 echo.
-echo 📍 Les deux conteneurs communiquent via le réseau Docker:
+echo  Les deux conteneurs communiquent via le réseau Docker:
 echo    • Web (Nginx) port !WEB_PORT!
 echo    • Simulateur (Flask) port 5000
 echo Commandes SSH utiles:

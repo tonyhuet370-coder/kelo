@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script de déploiement Kélonia sur Synology NAS
+#Script de déploiement Kélonia sur Synology NAS
 
 set -e
 

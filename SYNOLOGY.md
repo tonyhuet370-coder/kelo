@@ -1,4 +1,4 @@
-# 🐢 Kélonia - Déploiement sur Synology NAS
+#  Kélonia - Déploiement sur Synology NAS
 
 ## Architecture
 
