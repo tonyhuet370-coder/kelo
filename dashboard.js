@@ -9,8 +9,10 @@ let tempEl = null;
 let humEl = null;
 let vibEl = null;
 let soundEl = null;
+let nidSelectEl = null;
 let mqttClient = null;
 let lastPayloadSignature = null;
+let selectedNid = null;
 
 const nidStates = new Map();
 
@@ -70,6 +72,55 @@ function initDomRefs() {
   humEl = document.getElementById('hum-value');
   vibEl = document.getElementById('vib-value');
   soundEl = document.getElementById('sound-value');
+  nidSelectEl = document.getElementById('nidSelect');
+
+  if (nidSelectEl) {
+    nidSelectEl.addEventListener('change', () => {
+      selectedNid = nidSelectEl.value || null;
+      applyNidVisibility();
+      updateSummaryCardsForSelected();
+    });
+  }
+}
+
+function applyNidVisibility() {
+  const container = document.getElementById('nidsContainer');
+  if (!container) return;
+
+  const blocks = container.querySelectorAll('.nid-block');
+  blocks.forEach((block) => {
+    const nid = block.getAttribute('data-nid');
+    block.style.display = selectedNid && nid === selectedNid ? 'block' : 'none';
+  });
+}
+
+function updateSummaryCardsForSelected() {
+  if (!selectedNid) return;
+  const state = nidStates.get(selectedNid);
+  if (!state || !state.lastMetrics) return;
+
+  const metrics = state.lastMetrics;
+  if (tempEl && Number.isFinite(metrics.temperature)) tempEl.textContent = `${metrics.temperature.toFixed(2)} °C`;
+  if (humEl && Number.isFinite(metrics.humidite)) humEl.textContent = `${metrics.humidite.toFixed(2)} %`;
+  if (vibEl && Number.isFinite(metrics.vibration)) vibEl.textContent = `${metrics.vibration.toFixed(2)} m/s²`;
+  if (soundEl && Number.isFinite(metrics.tension)) soundEl.textContent = `${metrics.tension.toFixed(2)} V`;
+}
+
+function registerNidInSelect(nid) {
+  if (!nidSelectEl) return;
+
+  const exists = Array.from(nidSelectEl.options).some((option) => option.value === nid);
+  if (!exists) {
+    const option = document.createElement('option');
+    option.value = nid;
+    option.textContent = `Nid ${nid}`;
+    nidSelectEl.appendChild(option);
+  }
+
+  if (!selectedNid) {
+    selectedNid = nid;
+    nidSelectEl.value = nid;
+  }
 }
 
 function extractNid(topic, payload) {
@@ -98,6 +149,7 @@ function createNidState(nid) {
   const block = document.createElement('section');
   block.className = 'nid-block';
   block.id = `nid-${safeNid}`;
+  block.setAttribute('data-nid', nid);
 
   block.innerHTML = `
     <h2>Nid ${nid}</h2>
@@ -126,6 +178,7 @@ function createNidState(nid) {
   const state = {
     nid,
     safeNid,
+    lastMetrics: null,
     series: {
       temperature: createSeries(),
       humidite: createSeries(),
@@ -165,6 +218,8 @@ function createNidState(nid) {
   };
 
   nidStates.set(nid, state);
+  registerNidInSelect(nid);
+  applyNidVisibility();
   return state;
 }
 
@@ -236,6 +291,7 @@ function pickNumber(...values) {
 }
 
 function updateSummaryCards(metrics, flags) {
+  if (!selectedNid) return;
   if (tempEl && flags.hasTemperature) tempEl.textContent = `${metrics.temperature.toFixed(2)} °C`;
   if (humEl && flags.hasHumidite) humEl.textContent = `${metrics.humidite.toFixed(2)} %`;
   if (vibEl && flags.hasVibration) vibEl.textContent = `${metrics.vibration.toFixed(2)} m/s²`;
@@ -264,7 +320,17 @@ function updateCharts(payload, topic) {
 
   const time = new Date().toLocaleTimeString();
   const flags = updateNidCharts(state, metrics, time);
-  updateSummaryCards(metrics, flags);
+
+  state.lastMetrics = {
+    temperature: Number.isFinite(metrics.temperature) ? metrics.temperature : NaN,
+    humidite: Number.isFinite(metrics.humidite) ? metrics.humidite : NaN,
+    vibration: Number.isFinite(metrics.vibration) ? metrics.vibration : NaN,
+    tension: Number.isFinite(metrics.tension) ? metrics.tension : NaN
+  };
+
+  if (selectedNid === nid) {
+    updateSummaryCards(metrics, flags);
+  }
 }
 
 function stopRealtimeUpdates() {
