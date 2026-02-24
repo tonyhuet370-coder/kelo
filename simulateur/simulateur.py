@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import json
 import random
@@ -25,7 +25,9 @@ HOST = os.getenv('SIMULATEUR_HOST', '0.0.0.0')
 DEBUG = os.getenv('FLASK_ENV') == 'development'
 MQTT_BROKER = os.getenv('MQTT_BROKER', 'mosquitto')
 MQTT_PORT = int(os.getenv('MQTT_PORT', 1883))
-MQTT_TOPIC = os.getenv('MQTT_TOPIC', 'kelo/nid/A12/telemetry')
+MQTT_TOPIC = os.getenv('MQTT_TOPIC', '')
+MQTT_TOPIC_TEMPLATE = os.getenv('MQTT_TOPIC_TEMPLATE', 'kelo/nid/{nid}/telemetry')
+SIMULATED_NIDS = [nid.strip() for nid in os.getenv('SIMULATED_NIDS', 'A12,B07,C03,D11').split(',') if nid.strip()]
 PUBLISH_INTERVAL = float(os.getenv('PUBLISH_INTERVAL', 5))
 
 mqtt_client = None
@@ -33,10 +35,15 @@ latest_data = None
 latest_lock = threading.Lock()
 connected_event = threading.Event()
 
-def generate_data():
+def build_topic(nid):
+    if MQTT_TOPIC:
+        return MQTT_TOPIC.format(nid=nid) if '{nid}' in MQTT_TOPIC else MQTT_TOPIC
+    return MQTT_TOPIC_TEMPLATE.format(nid=nid)
+
+def generate_data(nid):
     """Génère les données du simulateur de capteurs"""
     data = {
-        "nid": "A12",
+        "nid": nid,
         "temperature": round(random.uniform(20.0, 30.0), 2),
         "humidite": round(random.randint(70, 90), 2),
         "vibration": round(random.uniform(3.5, 4.2), 2),
@@ -79,35 +86,38 @@ def connect_mqtt():
 def publish_loop():
     global mqtt_client
     while True:
-        data = generate_data()
-        try:
-            if mqtt_client is None:
-                mqtt_client = connect_mqtt()
-            result = mqtt_client.publish(MQTT_TOPIC, json.dumps(data))
-            if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                logger.info(f" MQTT publié sur {MQTT_TOPIC}")
-            else:
-                logger.error(f" Publication MQTT échouée (rc={result.rc})")
+        for nid in SIMULATED_NIDS:
+            data = generate_data(nid)
+            topic = build_topic(nid)
+            try:
+                if mqtt_client is None:
+                    mqtt_client = connect_mqtt()
+                result = mqtt_client.publish(topic, json.dumps(data))
+                if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                    logger.info(f" MQTT publié sur {topic}")
+                else:
+                    logger.error(f" Publication MQTT échouée (rc={result.rc})")
+                    try:
+                        mqtt_client.loop_stop()
+                    except Exception:
+                        pass
+                    mqtt_client = None
+            except Exception as e:
+                logger.error(f" Publication MQTT échouée: {e}")
                 try:
-                    mqtt_client.loop_stop()
+                    if mqtt_client is not None:
+                        mqtt_client.loop_stop()
                 except Exception:
                     pass
                 mqtt_client = None
-        except Exception as e:
-            logger.error(f" Publication MQTT échouée: {e}")
-            try:
-                if mqtt_client is not None:
-                    mqtt_client.loop_stop()
-            except Exception:
-                pass
-            mqtt_client = None
         time.sleep(PUBLISH_INTERVAL)
 
 @app.route('/data', methods=['GET'])
 def send_data():
     """Endpoint pour récupérer les données du simulateur"""
     try:
-        data = generate_data()
+        nid = request.args.get('nid', SIMULATED_NIDS[0] if SIMULATED_NIDS else 'A12')
+        data = generate_data(nid)
         logger.info(f"Données envoyées: Temp={data['temperature']}°C, Humid={data['humidite']}%")
         return jsonify(data)
     except Exception as e:
@@ -136,4 +146,5 @@ if __name__ == '__main__':
     t.start()
     logger.info(f" Démarrage du simulateur sur {HOST}:{PORT}")
     logger.info(f"Mode DEBUG: {DEBUG}")
+    logger.info(f"Nids simulés: {', '.join(SIMULATED_NIDS)}")
     app.run(host=HOST, port=PORT, debug=DEBUG)
