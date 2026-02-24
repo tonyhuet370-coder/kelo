@@ -364,3 +364,16 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
   });
 }
 
+document.querySelectorAll(".nid-toggle").forEach(toggle => {
+  toggle.addEventListener("change", function () {
+    const nid = this.dataset.nid;
+    const block = document.getElementById("nid" + nid);
+
+    if (this.checked) {
+      block.style.display = "block";
+      initChartsForNid(nid); // Création des graphiques
+    } else {
+      block.style.display = "none";
+    }
+  });
+});
