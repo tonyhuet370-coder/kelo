@@ -6,7 +6,7 @@ const DEFAULT_MQTT_TOPIC = 'kelo/nid/A12/telemetry';
 const MQTT_WS_URL = localStorage.getItem('mqttWsUrl') || DEFAULT_MQTT_WS_URL;
 const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
 
-// Éléments HTML pour les valeurs actuelles
+
 let tempEl = null;
 let humEl = null;
 let vibEl = null;
@@ -16,6 +16,8 @@ let soundEl = null;
 let labels = [];
 let tempData = [];
 let humData = [];
+let vibrationLabels = [];
+let tensionLabels = [];
 let lastKnown = {
   temperature: 25,
   humidite: 75,
@@ -25,13 +27,11 @@ let lastKnown = {
 
 // Historique des données (garder 6 dernières mesures)
 const dataHistory = {
-  temperature: [25, 25.5, 26, 26.5, 27, 27.5],
-  humidite: [75, 76, 77, 78, 79, 80],
-  vibration: [3.7, 3.8, 3.9, 3.85, 4.0, 4.1],
-  tension: [1, 1.5, 2.0, 2.2, 2.5, 2.8]
+  vibration: [],
+  tension: []
 };
 
-function createLineChart(canvasId, label, color, data) {
+function createLineChart(canvasId, label, color, data, chartLabels = labels) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || typeof canvas.getContext !== 'function') return null;
   const ctx = canvas.getContext('2d');
@@ -39,7 +39,7 @@ function createLineChart(canvasId, label, color, data) {
   return new Chart(ctx, {
     type: 'line',
     data: {
-      labels,
+      labels: chartLabels,
       datasets: [{
         label,
         data,
@@ -50,6 +50,10 @@ function createLineChart(canvasId, label, color, data) {
     },
     options: {
       responsive: true,
+      animation: {
+        duration: 450,
+        easing: 'easeOutCubic'
+      },
       plugins: {
         legend: { labels: { color: '#f5f5f5' } }
       },
@@ -67,7 +71,7 @@ let vibrationChart = null;
 let soundChart = null;
 
 let mqttClient = null;
-let fallbackTimer = null;
+let lastPayloadSignature = null;
 
 function initDomRefs() {
   tempEl = document.getElementById("temp-value");
@@ -102,7 +106,8 @@ function initCharts() {
       'vibrationChart',
       'Vibrations (m/s²)',
       'rgba(255, 206, 86, 1)',
-      [...dataHistory.vibration]
+      [...dataHistory.vibration],
+      vibrationLabels
     );
   }
 
@@ -111,7 +116,8 @@ function initCharts() {
       'soundChart',
       'Tension (V)',
       'rgba(75, 192, 192, 1)',
-      [...dataHistory.tension]
+      [...dataHistory.tension],
+      tensionLabels
     );
   }
 }
@@ -126,49 +132,15 @@ function isChartUsable(chart) {
   return Boolean(chart && chart.canvas && chart.canvas.isConnected && chart.ctx);
 }
 
-function updateChartIfUsable(chart, nextData) {
+function updateChartIfUsable(chart, nextData, nextLabels) {
   if (!isChartUsable(chart)) return;
   if (Array.isArray(nextData)) {
     chart.data.datasets[0].data = nextData;
   }
-  chart.update();
-}
-
-function updateData() {
-  ensureChartsReady();
-
-  const data = {
-    temp: (24 + Math.random() * 2).toFixed(2),
-    hum: (70 + Math.random() * 5).toFixed(2),
-    vib: (0.1 + Math.random() * 0.3).toFixed(2),
-    sound: (30 + Math.random() * 10).toFixed(2),
-    time: new Date().toLocaleTimeString()
-  };
-
-  if (tempEl) tempEl.textContent = data.temp + " °C";
-  if (humEl) humEl.textContent = data.hum + " %";
-  if (vibEl) vibEl.textContent = data.vib + " m/s²";
-  if (soundEl) soundEl.textContent = data.sound + " dB";
-
-  labels.push(data.time);
-  tempData.push(data.temp);
-  humData.push(data.hum);
-
-  if (labels.length > 12) {
-    labels.shift();
-    tempData.shift();
-    humData.shift();
+  if (Array.isArray(nextLabels)) {
+    chart.data.labels = nextLabels;
   }
-
-  dataHistory.vibration.push(parseFloat(data.vib));
-  dataHistory.vibration.shift();
-  dataHistory.tension.push(parseFloat(data.sound));
-  dataHistory.tension.shift();
-
-  updateChartIfUsable(tempChart);
-  updateChartIfUsable(humChart);
-  updateChartIfUsable(vibrationChart, [...dataHistory.vibration]);
-  updateChartIfUsable(soundChart, [...dataHistory.tension]);
+  chart.update();
 }
 
 function updateCharts(payload) {
@@ -197,18 +169,21 @@ function updateCharts(payload) {
 
   if (Number.isFinite(temperature)) lastKnown.temperature = temperature;
   if (Number.isFinite(humidite)) lastKnown.humidite = humidite;
-  if (Number.isFinite(vibration)) lastKnown.vibration = vibration;
-  if (Number.isFinite(tension)) lastKnown.tension = tension;
+  const hasVibration = Number.isFinite(vibration);
+  const hasTension = Number.isFinite(tension);
+
+  if (hasVibration) lastKnown.vibration = vibration;
+  if (hasTension) lastKnown.tension = tension;
 
   const safeHumidite = Number.isFinite(humidite) ? humidite : lastKnown.humidite;
-  const safeVibration = Number.isFinite(vibration) ? vibration : lastKnown.vibration;
-  const safeTension = Number.isFinite(tension) ? tension : lastKnown.tension;
+  const safeVibration = hasVibration ? vibration : null;
+  const safeTension = hasTension ? tension : null;
 
   // Mise à jour des affichages actuels
   if (tempEl) tempEl.textContent = temperature.toFixed(2) + " °C";
   if (humEl) humEl.textContent = safeHumidite.toFixed(2) + " %";
-  if (vibEl) vibEl.textContent = safeVibration.toFixed(2) + " m/s²";
-  if (soundEl) soundEl.textContent = safeTension.toFixed(2) + " V";
+  if (vibEl && hasVibration) vibEl.textContent = safeVibration.toFixed(2) + " m/s²";
+  if (soundEl && hasTension) soundEl.textContent = safeTension.toFixed(2) + " V";
 
   // Mise à jour avec timestamp
   const time = new Date().toLocaleTimeString();
@@ -222,52 +197,39 @@ function updateCharts(payload) {
     humData.shift();
   }
 
-  dataHistory.temperature.push(temperature);
-  dataHistory.temperature.shift();
-  dataHistory.humidite.push(safeHumidite);
-  dataHistory.humidite.shift();
-  dataHistory.vibration.push(safeVibration);
-  dataHistory.vibration.shift();
-  dataHistory.tension.push(safeTension);
-  dataHistory.tension.shift();
+  if (hasVibration) {
+    dataHistory.vibration.push(safeVibration);
+    vibrationLabels.push(time);
+    if (dataHistory.vibration.length > 12) {
+      dataHistory.vibration.shift();
+      vibrationLabels.shift();
+    }
+  }
+  if (hasTension) {
+    dataHistory.tension.push(safeTension);
+    tensionLabels.push(time);
+    if (dataHistory.tension.length > 12) {
+      dataHistory.tension.shift();
+      tensionLabels.shift();
+    }
+  }
 
   updateChartIfUsable(tempChart, [...tempData]);
   updateChartIfUsable(humChart, [...humData]);
-  updateChartIfUsable(vibrationChart, [...dataHistory.vibration]);
-  updateChartIfUsable(soundChart, [...dataHistory.tension]);
+
+  if (hasVibration) {
+    updateChartIfUsable(vibrationChart, [...dataHistory.vibration], [...vibrationLabels]);
+  }
+
+  if (hasTension) {
+    updateChartIfUsable(soundChart, [...dataHistory.tension], [...tensionLabels]);
+  }
 }
 
 function initDashboard() {
   initDomRefs();
   initCharts();
 
-  const apiUrlInput = document.getElementById('apiUrlInput');
-  const topicInput = document.getElementById('mqttTopicInput');
-  const saveApiBtn = document.getElementById('saveApiBtn');
-  const apiStatus = document.getElementById('apiStatus');
-
-  if (apiUrlInput) apiUrlInput.value = MQTT_WS_URL;
-  if (topicInput) topicInput.value = MQTT_TOPIC;
-
-  if (saveApiBtn) {
-    saveApiBtn.addEventListener('click', () => {
-      const newUrl = apiUrlInput ? apiUrlInput.value.trim() : '';
-      const newTopic = topicInput ? topicInput.value.trim() : '';
-      if (newUrl) localStorage.setItem('mqttWsUrl', newUrl);
-      if (newTopic) localStorage.setItem('mqttTopic', newTopic);
-      if (apiStatus) {
-        apiStatus.textContent = '✓ MQTT configuré';
-        apiStatus.style.color = '#4CAF50';
-      }
-      startMqtt(newUrl || MQTT_WS_URL, newTopic || MQTT_TOPIC);
-    });
-  }
-
-  // Démarrer la mise à jour des données (fallback si MQTT non connecté)
-  if (!fallbackTimer) {
-    fallbackTimer = setInterval(updateData, 3000);
-  }
-  updateData();
   startMqtt();
 }
 
@@ -278,11 +240,6 @@ if (document.readyState === 'loading') {
 }
 
 function stopRealtimeUpdates() {
-  if (fallbackTimer) {
-    clearInterval(fallbackTimer);
-    fallbackTimer = null;
-  }
-
   if (mqttClient) {
     try {
       mqttClient.end(true);
@@ -336,13 +293,20 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
   });
 
   mqttClient.on('message', (_topic, message) => {
+    const payloadText = message.toString();
+    if (payloadText === lastPayloadSignature) {
+      return;
+    }
+
     let payload;
     try {
-      payload = JSON.parse(message.toString());
+      payload = JSON.parse(payloadText);
     } catch (err) {
       console.error('MQTT JSON parse error', err);
       return;
     }
+
+    lastPayloadSignature = payloadText;
 
     try {
       if (statusEl) {
@@ -364,6 +328,7 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
   });
 }
 
+<<<<<<< HEAD
 document.querySelectorAll(".nid-toggle").forEach(toggle => {
   toggle.addEventListener("change", function () {
     const nid = this.dataset.nid;
@@ -377,3 +342,6 @@ document.querySelectorAll(".nid-toggle").forEach(toggle => {
     }
   });
 });
+=======
+
+>>>>>>> a3a9b8db1c501b12be14b6e32930be2b04d3fd3e

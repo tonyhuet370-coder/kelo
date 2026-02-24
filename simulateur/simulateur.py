@@ -51,14 +51,14 @@ def generate_data():
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         connected_event.set()
-        logger.info(f"✅ Connecté au broker MQTT {MQTT_BROKER}:{MQTT_PORT}")
+        logger.info(f" Connecté au broker MQTT {MQTT_BROKER}:{MQTT_PORT}")
     else:
-        logger.error(f"❌ Connexion MQTT échouée (rc={rc})")
+        logger.error(f" Connexion MQTT échouée (rc={rc})")
 
 def on_disconnect(client, userdata, rc):
     connected_event.clear()
     if rc != 0:
-        logger.error("❌ Déconnecté du broker MQTT")
+        logger.error(" Déconnecté du broker MQTT")
 
 def connect_mqtt():
     client = mqtt.Client()
@@ -85,16 +85,16 @@ def publish_loop():
                 mqtt_client = connect_mqtt()
             result = mqtt_client.publish(MQTT_TOPIC, json.dumps(data))
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                logger.info(f"📤 MQTT publié sur {MQTT_TOPIC}")
+                logger.info(f" MQTT publié sur {MQTT_TOPIC}")
             else:
-                logger.error(f"❌ Publication MQTT échouée (rc={result.rc})")
+                logger.error(f" Publication MQTT échouée (rc={result.rc})")
                 try:
                     mqtt_client.loop_stop()
                 except Exception:
                     pass
                 mqtt_client = None
         except Exception as e:
-            logger.error(f"❌ Publication MQTT échouée: {e}")
+            logger.error(f" Publication MQTT échouée: {e}")
             try:
                 if mqtt_client is not None:
                     mqtt_client.loop_stop()
@@ -134,6 +134,6 @@ if __name__ == '__main__':
     mqtt_client = connect_mqtt()
     t = threading.Thread(target=publish_loop, daemon=True)
     t.start()
-    logger.info(f"🚀 Démarrage du simulateur sur {HOST}:{PORT}")
+    logger.info(f" Démarrage du simulateur sur {HOST}:{PORT}")
     logger.info(f"Mode DEBUG: {DEBUG}")
     app.run(host=HOST, port=PORT, debug=DEBUG)

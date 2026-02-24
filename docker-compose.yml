@@ -29,7 +29,7 @@ services:
       - kelo-network
     restart: unless-stopped
 
-  # Collector: s'abonne au broker et expose /latest et SSE /collector/events
+ 
   collector:
     build:
       context: ./collector

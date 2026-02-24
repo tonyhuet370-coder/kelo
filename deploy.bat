@@ -3,14 +3,14 @@ REM Script de déploiement Kélonia pour Windows/WSL
 
 echo.
 echo ===================================
-echo 🐢 Kelonia - Deployment
+echo  Kelonia - Deployment
 echo ===================================
 echo.
 
 REM Vérifier Docker
 docker --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ❌ Docker n'est pas installé ou accessible
+    echo  Docker n'est pas installé ou accessible
     echo Installation: https://www.docker.com/products/docker-desktop
     pause
     exit /b 1
@@ -18,7 +18,7 @@ if %errorlevel% neq 0 (
 
 docker-compose --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ❌ Docker Compose n'est pas installé
+    echo  Docker Compose n'est pas installé
     pause
     exit /b 1
 )
@@ -27,7 +27,7 @@ echo ✓ Docker et Docker Compose trouvés
 echo.
 
 REM Démarrer les services
-echo 🚀 Démarrage des services...
+echo Démarrage des services...
 docker-compose up -d
 
 REM Attendre
@@ -35,13 +35,13 @@ timeout /t 5 /nobreak
 
 REM Vérifier le statut
 echo.
-echo 📊 Statut des services:
+echo Statut des services:
 docker-compose ps
 
 echo.
-echo ✅ Déploiement réussi!
+echo Déploiement réussi!
 echo.
-echo 📍 Accès:
+echo  Accès:
 echo    Site web: http://localhost
 echo    API:      http://localhost/api/data
 echo.

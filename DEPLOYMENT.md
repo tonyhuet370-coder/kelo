@@ -1,6 +1,6 @@
-# 🐢 Kélonia - Guide de Déploiement
+#  Kélonia - Guide de Déploiement
 
-**⚠️ Important:** Lire le guide spécifique pour votre plateforme:
+** Important:** Lire le guide spécifique pour votre plateforme:
 - **Synology NAS**: Voir [SYNOLOGY.md](SYNOLOGY.md) ← Si vous avez un Synology
 - **VM Standard**: Voir ci-dessous
 
@@ -96,7 +96,7 @@ http://WEB_IP
 ## Configuration du Dashboard
 
 1. Ouvrir le dashboard : `http://WEB_IP`
-2. Aller au panneau "⚙️ Configuration API"
+2. Aller au panneau " Configuration API"
 3. Rentrer : `/api/data`
 
 L'API est automatiquement proxy via nginx vers la VM du simulateur !

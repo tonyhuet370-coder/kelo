@@ -1,11 +1,11 @@
 #!/bin/bash
-# Script de déploiement Kélonia sur Synology NAS
+#Script de déploiement Kélonia sur Synology NAS
 
 set -e
 
 echo ""
 echo "===================================================="
-echo "🐢 Kelonia - Deployment sur Synology NAS"
+echo " Kelonia - Deployment sur Synology NAS"
 echo "===================================================="
 echo ""
 
