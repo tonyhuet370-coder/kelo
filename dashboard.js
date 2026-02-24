@@ -4,12 +4,14 @@ const DEFAULT_MQTT_TOPIC = 'kelo/nid/+/telemetry';
 const MQTT_WS_URL = localStorage.getItem('mqttWsUrl') || DEFAULT_MQTT_WS_URL;
 const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
 const MAX_POINTS = 12;
+const AUTH_KEY = 'keloniaAuth';
 
 let tempEl = null;
 let humEl = null;
 let vibEl = null;
 let soundEl = null;
 let nidSelectEl = null;
+let logoutBtnEl = null;
 let mqttClient = null;
 let lastPayloadSignature = null;
 let selectedNid = null;
@@ -73,6 +75,7 @@ function initDomRefs() {
   vibEl = document.getElementById('vib-value');
   soundEl = document.getElementById('sound-value');
   nidSelectEl = document.getElementById('nidSelect');
+  logoutBtnEl = document.getElementById('logoutBtn');
 
   if (nidSelectEl) {
     nidSelectEl.addEventListener('change', () => {
@@ -81,6 +84,21 @@ function initDomRefs() {
       updateSummaryCardsForSelected();
     });
   }
+
+  if (logoutBtnEl) {
+    logoutBtnEl.addEventListener('click', () => {
+      localStorage.removeItem(AUTH_KEY);
+      localStorage.removeItem('keloniaUser');
+      stopRealtimeUpdates();
+      window.location.href = 'login.html';
+    });
+  }
+}
+
+function ensureAuthenticated() {
+  if (localStorage.getItem(AUTH_KEY) === '1') return true;
+  window.location.href = 'login.html';
+  return false;
 }
 
 function applyNidVisibility() {
@@ -380,6 +398,7 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
 }
 
 function initDashboard() {
+  if (!ensureAuthenticated()) return;
   initDomRefs();
   startMqtt();
 }

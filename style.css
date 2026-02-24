@@ -105,6 +105,12 @@ p {
   color: #053032;
 }
 
+.nav-link-button {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
 .hero,
 .about,
 .dashboard {
@@ -232,6 +238,47 @@ p {
   margin: 18px auto 0;
   display: grid;
   gap: 16px;
+}
+
+.login-page {
+  min-height: calc(100vh - 180px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: min(460px, 94vw);
+  background: linear-gradient(180deg, var(--surface), var(--surface-2));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+}
+
+.login-card h1 {
+  margin-bottom: 8px;
+}
+
+.login-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.login-form label {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.login-error {
+  color: #ff9b9b;
+  min-height: 20px;
+}
+
+.login-hint {
+  margin-top: 8px;
+  font-size: 0.95rem;
 }
 
 .nid-filter-wrap {

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion - Kélonia</title>
+  <link rel="stylesheet" href="style.css?v=20260224-login-1">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-name">Kélonia</span>
+        
+      </div>
+      <nav>
+        <ul class="nav-list">
+          <li><a class="nav-link" href="index.html">Accueil</a></li>
+          <li><a class="nav-link active" href="login.html">Connexion</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="login-page">
+    <section class="login-card">
+      <h1>Connexion</h1>
+      <p class="subtitle">Accédez au tableau de bord des nids</p>
+
+      <form id="loginForm" class="login-form">
+        <label for="username">Identifiant</label>
+        <input id="username" name="username" type="text" placeholder="admin" required>
+
+        <label for="password">Mot de passe</label>
+        <input id="password" name="password" type="password" placeholder="admin" required>
+
+        <button type="submit">Se connecter</button>
+        <p id="loginError" class="login-error" aria-live="polite"></p>
+      </form>
+
+      <p class="login-hint">Compte de démo: <strong>admin / admin</strong></p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p>© 2025 Kélonia · Surveillance des nids de tortues</p>
+    </div>
+  </footer>
+
+  <script>
+    const AUTH_KEY = 'keloniaAuth';
+    const DEMO_USER = 'admin';
+    const DEMO_PASS = 'admin';
+
+    if (localStorage.getItem(AUTH_KEY) === '1') {
+      window.location.href = 'dashboard.html';
+    }
+
+    const form = document.getElementById('loginForm');
+    const errorEl = document.getElementById('loginError');
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (username === DEMO_USER && password === DEMO_PASS) {
+        localStorage.setItem(AUTH_KEY, '1');
+        localStorage.setItem('keloniaUser', username);
+        window.location.href = 'dashboard.html';
+        return;
+      }
+
+      errorEl.textContent = 'Identifiants incorrects.';
+    });
+  </script>
+</body>
+</html>
