@@ -116,11 +116,6 @@ function registerNidInSelect(nid) {
     option.textContent = `Nid ${nid}`;
     nidSelectEl.appendChild(option);
   }
-
-  if (!selectedNid) {
-    selectedNid = nid;
-    nidSelectEl.value = nid;
-  }
 }
 
 function extractNid(topic, payload) {
@@ -360,7 +355,8 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
 
   mqttClient.on('message', (receivedTopic, message) => {
     const payloadText = message.toString();
-    if (payloadText === lastPayloadSignature) return;
+    const signature = `${receivedTopic}::${payloadText}`;
+    if (signature === lastPayloadSignature) return;
 
     let payload;
     try {
@@ -370,7 +366,7 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
       return;
     }
 
-    lastPayloadSignature = payloadText;
+    lastPayloadSignature = signature;
     try {
       updateCharts(payload, receivedTopic);
     } catch (err) {
