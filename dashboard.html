@@ -7,149 +7,50 @@
   <script src="vendor/chart.min.js"></script>
   <script src="vendor/mqtt.min.js"></script>
 </head>
-
 <body>
-  <!-- HEADER -->
   <header class="site-header">
     <div class="container header-inner">
       <div class="brand">
         <span class="brand-name">Kélonia</span>
-        <span class="logo"></span>
+        <span class="logo">🐢</span>
       </div>
 
       <nav>
         <ul class="nav-list">
           <li><a class="nav-link" href="index.html">Accueil</a></li>
           <li><a class="nav-link active" href="dashboard.html">Tableau de bord</a></li>
-         
         </ul>
       </nav>
     </div>
   </header>
 
-  <!-- MAIN -->
   <main class="dashboard">
     <h1>Tableau de bord des nids de tortues</h1>
     <p class="subtitle">Suivi en temps réel des paramètres environnementaux</p>
 
-    <!-- SELECTEUR DE NIDS -->
-    <section class="nid-selector">
-      <h2>Afficher les nids</h2>
+    <section class="cards">
+      <div class="card">
+        <h2>Température</h2>
+        <p id="temp-value" class="value">-- °C</p>
+      </div>
 
-      <label><input type="checkbox" class="nid-toggle" data-nid="1"> Nid 1</label>
-      <label><input type="checkbox" class="nid-toggle" data-nid="2"> Nid 2</label>
-      <label><input type="checkbox" class="nid-toggle" data-nid="3"> Nid 3</label>
-      <label><input type="checkbox" class="nid-toggle" data-nid="4"> Nid 4</label>
+      <div class="card">
+        <h2>Humidité</h2>
+        <p id="hum-value" class="value">-- %</p>
+      </div>
+
+      <div class="card">
+        <h2>Vibrations</h2>
+        <p id="vib-value" class="value">-- m/s²</p>
+      </div>
+
+      <div class="card">
+        <h2>Tension</h2>
+        <p id="sound-value" class="value">-- V</p>
+      </div>
     </section>
 
-<<<<<<< HEAD
-    <!-- BLOCS DES NIDS (masqués par défaut) -->
-    <section class="charts">
-
-      <!-- NID 1 -->
-      <section class="nid-block" id="nid1" style="display:none;">
-        <h2>NID 1</h2>
-        <div class="chart-container">
-          <h3>Température</h3>
-          <canvas id="tempChart_nid1"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Humidité</h3>
-          <canvas id="humChart_nid1"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Vibrations</h3>
-          <canvas id="vibChart_nid1"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Tension (V)</h3>
-          <canvas id="soundChart_nid1"></canvas>
-        </div>
-      </section>
-
-      <!-- NID 2 -->
-      <section class="nid-block" id="nid2" style="display:none;">
-        <h2>NID 2</h2>
-        <div class="chart-container">
-          <h3>Température</h3>
-          <canvas id="tempChart_nid2"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Humidité</h3>
-          <canvas id="humChart_nid2"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Vibrations</h3>
-          <canvas id="vibChart_nid2"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Tension (V)</h3>
-          <canvas id="soundChart_nid2"></canvas>
-        </div>
-      </section>
-
-      <!-- NID 3 -->
-      <section class="nid-block" id="nid3" style="display:none;">
-        <h2>NID 3</h2>
-        <div class="chart-container">
-          <h3>Température</h3>
-          <canvas id="tempChart_nid3"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Humidité</h3>
-          <canvas id="humChart_nid3"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Vibrations</h3>
-          <canvas id="vibChart_nid3"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Tension (V)</h3>
-          <canvas id="soundChart_nid3"></canvas>
-        </div>
-      </section>
-
-      <!-- NID 4 -->
-      <section class="nid-block" id="nid4" style="display:none;">
-        <h2>NID 4</h2>
-        <div class="chart-container">
-          <h3>Température</h3>
-          <canvas id="tempChart_nid4"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Humidité</h3>
-          <canvas id="humChart_nid4"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Vibrations</h3>
-          <canvas id="vibChart_nid4"></canvas>
-        </div>
-        <div class="chart-container">
-          <h3>Tension (V)</h3>
-          <canvas id="soundChart_nid4"></canvas>
-        </div>
-      </section>
-
-    </section>
-
-    <!-- CONFIGURATION MQTT + DONNÉES -->
-    <div class="container dashboard-grid">
-      <section class="card">
-        <h2>⚙️ Configuration MQTT</h2>
-        <div>
-          <label>URL WebSocket MQTT:</label><br>
-          <input type="text" id="apiUrlInput" placeholder="ws://192.168.62.3:9001">
-          <label>Topic MQTT:</label><br>
-          <input type="text" id="mqttTopicInput" placeholder="kelo/nid/A12/telemetry">
-          <button id="saveApiBtn">Enregistrer</button>
-          <p id="apiStatus">✓ MQTT prêt</p>
-        </div>
-      </section>
-
-=======
-    <!-- Données actuelles -->
     <div class="container">
->>>>>>> a3a9b8db1c501b12be14b6e32930be2b04d3fd3e
       <section class="card">
         <h2>Données actuelles</h2>
         <div id="dataDisplay">
@@ -158,20 +59,15 @@
       </section>
     </div>
 
+    <section id="nidsContainer" class="nids-container"></section>
   </main>
 
-  <!-- FOOTER -->
   <footer class="site-footer">
     <div class="container footer-inner">
       <p>© 2025 Kélonia · Surveillance des nids de tortues</p>
     </div>
   </footer>
 
-<<<<<<< HEAD
-  <!-- SCRIPT -->
-  <script src="dashboard.js?v=20260213-7"></script>
-=======
-  <script src="dashboard.js?v=20260220-2"></script>
->>>>>>> a3a9b8db1c501b12be14b6e32930be2b04d3fd3e
+  <script src="dashboard.js?v=20260224-1"></script>
 </body>
 </html>

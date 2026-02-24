@@ -227,6 +227,30 @@ p {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.nids-container {
+  width: min(1120px, 92vw);
+  margin: 18px auto 0;
+  display: grid;
+  gap: 16px;
+}
+
+.nid-block {
+  background: linear-gradient(180deg, var(--surface), var(--surface-2));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.nid-block > h2 {
+  margin-bottom: 12px;
+}
+
+.nid-charts {
+  width: 100%;
+  margin: 0;
+}
+
 canvas {
   width: 100% !important;
   height: 280px !important;
@@ -313,6 +337,7 @@ button {
 
   .dashboard-grid,
   .charts,
+  .nid-charts,
   .hero-images {
     grid-template-columns: 1fr;
   }

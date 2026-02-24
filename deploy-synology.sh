@@ -19,7 +19,7 @@ WEB_PORT=${WEB_PORT:-8080}
 
 # Vérifier SSH
 if ! command -v ssh &> /dev/null; then
-    echo "❌ SSH n'est pas disponible"
+    echo " SSH n'est pas disponible"
     exit 1
 fi
 
@@ -33,11 +33,11 @@ echo "Les deux conteneurs (web + simulateur) seront déployés!"
 echo ""
 
 # Copier les fichiers
-echo "📁 Copie des fichiers vers le NAS..."
+echo "Copie des fichiers vers le NAS..."
 scp -r . "$NAS_USER@$NAS_IP:/volume1/docker/kelo/" || exit 1
 
 # Configuration du .env
-echo "⚙️  Configuration du .env..."
+echo "  Configuration du .env..."
 ssh "$NAS_USER@$NAS_IP" << EOF
 cd /volume1/docker/kelo
 cat > .env << INNER_EOF
@@ -48,7 +48,7 @@ echo "✓ .env créé"
 EOF
 
 # Démarrer Docker
-echo "🚀 Démarrage des conteneurs..."
+echo " Démarrage des conteneurs..."
 ssh "$NAS_USER@$NAS_IP" << EOF
 cd /volume1/docker/kelo
 docker-compose down 2>/dev/null || true
@@ -58,12 +58,12 @@ docker-compose ps
 EOF
 
 echo ""
-echo "✅ Déploiement réussi!"
+echo " Déploiement réussi!"
 echo ""
-echo "📍 Accès au site:"
+echo " Accès au site:"
 echo "   http://$NAS_IP:$WEB_PORT"
 echo ""
-echo "📍 Les deux conteneurs communiquent via le réseau Docker:"
+echo " Les deux conteneurs communiquent via le réseau Docker:"
 echo "   • Web (Nginx) port $WEB_PORT"
 echo "   • Simulateur (Flask) port 5000"
 echo ""

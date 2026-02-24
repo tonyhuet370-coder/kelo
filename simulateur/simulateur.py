@@ -9,7 +9,7 @@ from datetime import datetime
 import threading
 import paho.mqtt.client as mqtt
 
-# Configuration du logging
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -17,9 +17,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)  # Activer CORS pour les requêtes depuis le navigateur
+CORS(app)  
 
-# Configuration depuis les variables d'environnement
+
 PORT = int(os.getenv('SIMULATEUR_PORT', 5000))
 HOST = os.getenv('SIMULATEUR_HOST', '0.0.0.0')
 DEBUG = os.getenv('FLASK_ENV') == 'development'
@@ -73,7 +73,7 @@ def connect_mqtt():
                 raise RuntimeError("Connexion MQTT timeout")
             return client
         except Exception as e:
-            logger.error(f"❌ Connexion MQTT échouée: {e}")
+            logger.error(f" Connexion MQTT échouée: {e}")
             time.sleep(5)
 
 def publish_loop():
