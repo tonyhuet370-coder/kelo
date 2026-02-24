@@ -135,7 +135,7 @@ docker-compose down
 
 **Erreur de connexion au simulateur:**
 ```bash
-# Depuis la VM web, tester la connexion
+
 curl http://SIMULATEUR_IP:5000/data
 ```
 

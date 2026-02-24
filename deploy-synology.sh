@@ -1,5 +1,4 @@
-#!/bin/bash
-#Script de déploiement Kélonia sur Synology NAS
+
 
 set -e
 
@@ -9,7 +8,7 @@ echo " Kelonia - Deployment sur Synology NAS"
 echo "===================================================="
 echo ""
 
-# Configuration
+
 read -p "Entrer l'IP du NAS (ex: 192.168.1.50): " NAS_IP
 read -p "Nom d'utilisateur SSH [admin]: " NAS_USER
 NAS_USER=${NAS_USER:-admin}
@@ -17,7 +16,7 @@ NAS_USER=${NAS_USER:-admin}
 read -p "Port du site web sur le NAS [8080]: " WEB_PORT
 WEB_PORT=${WEB_PORT:-8080}
 
-# Vérifier SSH
+
 if ! command -v ssh &> /dev/null; then
     echo " SSH n'est pas disponible"
     exit 1
@@ -32,11 +31,11 @@ echo ""
 echo "Les deux conteneurs (web + simulateur) seront déployés!"
 echo ""
 
-# Copier les fichiers
+
 echo "Copie des fichiers vers le NAS..."
 scp -r . "$NAS_USER@$NAS_IP:/volume1/docker/kelo/" || exit 1
 
-# Configuration du .env
+
 echo "  Configuration du .env..."
 ssh "$NAS_USER@$NAS_IP" << EOF
 cd /volume1/docker/kelo
@@ -47,7 +46,7 @@ INNER_EOF
 echo "✓ .env créé"
 EOF
 
-# Démarrer Docker
+
 echo " Démarrage des conteneurs..."
 ssh "$NAS_USER@$NAS_IP" << EOF
 cd /volume1/docker/kelo
