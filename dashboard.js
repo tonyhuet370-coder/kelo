@@ -169,18 +169,22 @@ function createNidState(nid) {
     <div class="charts nid-charts">
       <div class="chart-container">
         <h3>Température</h3>
+        <div class="alert" id="tempAlert_${safeNid}" style="display: none;">⚠️ Température anormale</div>
         <canvas id="tempChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Humidité</h3>
+        <div class="alert" id="humAlert_${safeNid}" style="display: none;">⚠️ Humidité anormale</div>
         <canvas id="humChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Vibrations</h3>
+        <div class="alert" id="vibAlert_${safeNid}" style="display: none;">⚠️ Vibrations élevées</div>
         <canvas id="vibrationChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Tension</h3>
+        <div class="alert" id="tensionAlert_${safeNid}" style="display: none;">⚠️ Tension anormale</div>
         <canvas id="tensionChart_${safeNid}"></canvas>
       </div>
     </div>
@@ -254,6 +258,38 @@ function pushPoint(series, value, timeLabel) {
   return true;
 }
 
+function updateAlerts(state, metrics) {
+  const safeNid = state.safeNid;
+  
+  // Température: normale 25-40°C
+  const tempAlert = document.getElementById(`tempAlert_${safeNid}`);
+  if (tempAlert) {
+    const isAlert = Number.isFinite(metrics.temperature) && (metrics.temperature < 25 || metrics.temperature > 40);
+    tempAlert.style.display = isAlert ? 'block' : 'none';
+  }
+  
+  // Humidité: normale 40-70%
+  const humAlert = document.getElementById(`humAlert_${safeNid}`);
+  if (humAlert) {
+    const isAlert = Number.isFinite(metrics.humidite) && (metrics.humidite < 40 || metrics.humidite > 70);
+    humAlert.style.display = isAlert ? 'block' : 'none';
+  }
+  
+  // Vibrations: normale < 0.5 m/s²
+  const vibAlert = document.getElementById(`vibAlert_${safeNid}`);
+  if (vibAlert) {
+    const isAlert = Number.isFinite(metrics.vibration) && metrics.vibration > 0.5;
+    vibAlert.style.display = isAlert ? 'block' : 'none';
+  }
+  
+  // Tension: normale 3-5V
+  const tensionAlert = document.getElementById(`tensionAlert_${safeNid}`);
+  if (tensionAlert) {
+    const isAlert = Number.isFinite(metrics.tension) && (metrics.tension < 3 || metrics.tension > 5);
+    tensionAlert.style.display = isAlert ? 'block' : 'none';
+  }
+}
+
 function updateNidCharts(state, metrics, timeLabel) {
   const hasTemperature = pushPoint(state.series.temperature, metrics.temperature, timeLabel);
   const hasHumidite = pushPoint(state.series.humidite, metrics.humidite, timeLabel);
@@ -291,6 +327,8 @@ function updateNidCharts(state, metrics, timeLabel) {
       [...state.series.tension.labels]
     );
   }
+
+  updateAlerts(state, metrics);
 
   return { hasTemperature, hasHumidite, hasVibration, hasTension };
 }
