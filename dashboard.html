@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tableau de bord - Kélonia</title>
   <link rel="stylesheet" href="style.css?v=20260213-modern-1">
   <script src="vendor/chart.min.js"></script>
@@ -25,56 +26,42 @@
     </div>
   </header>
 
-  <main class="dashboard">
-    <h1>Tableau de bord des nids de tortues</h1>
-    <p class="subtitle">Suivi en temps réel des paramètres environnementaux</p>
-
-    <section class="cards">
-      <div class="card">
-        <h2>Température</h2>
-        <p id="temp-value" class="value">-- °C</p>
-      </div>
-
-      <div class="card">
-        <h2>Humidité</h2>
-        <p id="hum-value" class="value">-- %</p>
-      </div>
-
-      <div class="card">
-        <h2>Vibrations</h2>
-        <p id="vib-value" class="value">-- m/s²</p>
-      </div>
-
-      <div class="card">
-        <h2>Tension</h2>
-        <p id="sound-value" class="value">-- V</p>
-      </div>
-    </section>
-
-    <div class="container">
-      <section class="card">
-        <h2>Données actuelles</h2>
-        <div id="dataDisplay">
-          <pre id="jsonData">Chargement...</pre>
-        </div>
-      </section>
+  
+  <!-- Hero intro -->
+  <section class="hero">
+    <div class="container hero-inner">
+      <h1>Tableau de bord des nids de tortues</h1>
+      <p class="subtitle">Surveillance en temps réel et historique des paramètres environnementaux</p>
     </div>
+  </section>
 
-    <section class="container nid-filter-wrap">
-      <div class="card nid-filter-card">
-        <label for="nidSelect">Nid à afficher</label>
-        <select id="nidSelect" class="nid-select">
-          <option value="">Choisir un nid</option>
-        </select>
-      </div>
-    </section>
+  <!-- Quick overview cards -->
+  <section class="cards">…</section>
 
-    <section id="nidsContainer" class="nids-container"></section>
-  </main>
+  <!-- charts section -->
+  <section class="charts container">
+    <div class="chart-container">
+      <h3>Température (24h)</h3>
+      <canvas id="tempChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>Humidité (24h)</h3>
+      <canvas id="humChart"></canvas>
+    </div>
+  </section>
+
+  <div class="container">…</div>
+  <section class="container nid-filter-wrap">…</section>
+  <section id="nidsContainer" class="nids-container"></section>
+</main>
 
   <footer class="site-footer">
     <div class="container footer-inner">
       <p>© 2025 Kélonia · Surveillance des nids de tortues</p>
+      <ul class="footer-links">
+        <li><a href="apropos.html">À propos</a></li>
+        <li><a href="index.html">Accueil</a></li>
+      </ul>
     </div>
   </footer>
 
