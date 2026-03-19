@@ -5,6 +5,12 @@ const MQTT_WS_URL = localStorage.getItem('mqttWsUrl') || DEFAULT_MQTT_WS_URL;
 const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
 const MAX_POINTS = 12;
 const AUTH_KEY = 'keloniaAuth';
+const ALERT_LIMITS = {
+  temperature: { min: 24, max: 32 },
+  humidite: { min: 60, max: 95 },
+  vibration: { min: 3.0, max: 4.5 },
+  tension: { min: 0.5, max: 4.5 }
+};
 
 let tempEl = null;
 let humEl = null;
@@ -270,32 +276,32 @@ function pushPoint(series, value, timeLabel) {
 
 function updateAlerts(state, metrics) {
   const safeNid = state.safeNid;
-  
-  // Température: normale 25-40°C
+
   const tempAlert = document.getElementById(`tempAlert_${safeNid}`);
   if (tempAlert) {
-    const isAlert = Number.isFinite(metrics.temperature) && (metrics.temperature < 25 || metrics.temperature > 40);
+    const isAlert = Number.isFinite(metrics.temperature)
+      && (metrics.temperature < ALERT_LIMITS.temperature.min || metrics.temperature > ALERT_LIMITS.temperature.max);
     tempAlert.style.display = isAlert ? 'block' : 'none';
   }
-  
-  // Humidité: normale 40-70%
+
   const humAlert = document.getElementById(`humAlert_${safeNid}`);
   if (humAlert) {
-    const isAlert = Number.isFinite(metrics.humidite) && (metrics.humidite < 40 || metrics.humidite > 70);
+    const isAlert = Number.isFinite(metrics.humidite)
+      && (metrics.humidite < ALERT_LIMITS.humidite.min || metrics.humidite > ALERT_LIMITS.humidite.max);
     humAlert.style.display = isAlert ? 'block' : 'none';
   }
-  
-  // Vibrations: normale < 0.5 m/s²
+
   const vibAlert = document.getElementById(`vibAlert_${safeNid}`);
   if (vibAlert) {
-    const isAlert = Number.isFinite(metrics.vibration) && metrics.vibration > 0.5;
+    const isAlert = Number.isFinite(metrics.vibration)
+      && (metrics.vibration < ALERT_LIMITS.vibration.min || metrics.vibration > ALERT_LIMITS.vibration.max);
     vibAlert.style.display = isAlert ? 'block' : 'none';
   }
-  
-  // Tension: normale 3-5V
+
   const tensionAlert = document.getElementById(`tensionAlert_${safeNid}`);
   if (tensionAlert) {
-    const isAlert = Number.isFinite(metrics.tension) && (metrics.tension < 3 || metrics.tension > 5);
+    const isAlert = Number.isFinite(metrics.tension)
+      && (metrics.tension < ALERT_LIMITS.tension.min || metrics.tension > ALERT_LIMITS.tension.max);
     tensionAlert.style.display = isAlert ? 'block' : 'none';
   }
 }

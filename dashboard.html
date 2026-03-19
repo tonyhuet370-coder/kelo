@@ -4,9 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tableau de bord - Kélonia</title>
+<<<<<<< HEAD
   <link rel="stylesheet" href="style.css?v=20260213-modern-1">
   <script src="dashboard.js?v=20260224-login-1"></script>
 
+=======
+  <link rel="stylesheet" href="style.css?v=20260318-alert-1">
+>>>>>>> b2fd89b8e3603e19cab6fe006fd2b370fc9d8bf1
   <script src="vendor/chart.min.js"></script>
   <script src="vendor/mqtt.min.js"></script>
 </head>
@@ -15,7 +19,6 @@
     <div class="container header-inner">
       <div class="brand">
         <span class="brand-name">Kélonia</span>
-        
       </div>
 
       <nav>
@@ -28,34 +31,52 @@
     </div>
   </header>
 
-  
-  <!-- Hero intro -->
-  <section class="hero">
-    <div class="container hero-inner">
-      <h1>Tableau de bord des nids de tortues</h1>
-      <p class="subtitle">Surveillance en temps réel et historique des paramètres environnementaux</p>
-    </div>
-  </section>
+  <main class="dashboard">
+    <h1>Tableau de bord des nids de tortues</h1>
+    <p class="subtitle">Surveillance en temps réel et historique des paramètres environnementaux</p>
 
-  <!-- Quick overview cards -->
-  <section class="cards">…</section>
+    <section class="cards">
+      <div class="card">
+        <h2>Température</h2>
+        <p id="temp-value" class="value">-- °C</p>
+      </div>
 
-  <!-- charts section -->
-  <section class="charts container">
-    <div class="chart-container">
-      <h3>Température (24h)</h3>
-      <canvas id="tempChart"></canvas>
-    </div>
-    <div class="chart-container">
-      <h3>Humidité (24h)</h3>
-      <canvas id="humChart"></canvas>
-    </div>
-  </section>
+      <div class="card">
+        <h2>Humidité</h2>
+        <p id="hum-value" class="value">-- %</p>
+      </div>
 
-  <div class="container">…</div>
-  <section class="container nid-filter-wrap">…</section>
-  <section id="nidsContainer" class="nids-container"></section>
-</main>
+      <div class="card">
+        <h2>Vibrations</h2>
+        <p id="vib-value" class="value">-- m/s²</p>
+      </div>
+
+      <div class="card">
+        <h2>Tension</h2>
+        <p id="sound-value" class="value">-- V</p>
+      </div>
+    </section>
+
+    <div class="container">
+      <section class="card">
+        <h2>Données actuelles</h2>
+        <div id="dataDisplay">
+          <pre id="jsonData">Chargement...</pre>
+        </div>
+      </section>
+    </div>
+
+    <section class="container nid-filter-wrap">
+      <div class="card nid-filter-card">
+        <label for="nidSelect">Nid à afficher</label>
+        <select id="nidSelect" class="nid-select">
+          <option value="">Choisir un nid</option>
+        </select>
+      </div>
+    </section>
+
+    <section id="nidsContainer" class="nids-container"></section>
+  </main>
 
   <footer class="site-footer">
     <div class="container footer-inner">
@@ -67,6 +88,6 @@
     </div>
   </footer>
 
-  <script src="dashboard.js?v=20260224-login-1"></script>
+  <script src="dashboard.js?v=20260318-alert-1"></script>
 </body>
 </html>
