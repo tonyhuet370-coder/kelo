@@ -21,7 +21,6 @@ const nidStates = new Map();
 function createLineChart(canvasId, label, color, data, chartLabels) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || typeof canvas.getContext !== 'function') return null;
-
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
@@ -68,6 +67,17 @@ function updateChartIfUsable(chart, values, labels) {
 function sanitizeId(value) {
   return String(value).replace(/[^a-zA-Z0-9_-]/g, '_');
 }
+fetch("http://localhost:8000/api/nids")
+  .then(res => res.json())
+  .then(data => {
+    console.log("Données reçues :", data);
+
+    // Ici tu peux afficher les nids dans ton dashboard
+    // Exemple :
+    // afficherNids(data);
+  })
+  .catch(err => console.error("Erreur API :", err));
+
 
 function initDomRefs() {
   tempEl = document.getElementById('temp-value');
