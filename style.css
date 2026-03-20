@@ -470,9 +470,9 @@ button {
   text-decoration: none;
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 981px) {
   .dashboard {
-    padding-left: 360px;
+    padding-left: 348px;
   }
 
   .log-wrap {
@@ -480,6 +480,7 @@ button {
     top: 92px;
     left: 14px;
     width: 330px;
+    max-width: 330px;
     margin: 0;
     z-index: 25;
   }
