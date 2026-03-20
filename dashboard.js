@@ -276,28 +276,28 @@ function createNidState(nid) {
       temperature: createLineChart(
         `tempChart_${safeNid}`,
         `Température (°C) · Nid ${nid}`,
-        'rgba(75, 192, 192, 1)',
+        'rgba(255, 140, 66, 1)',
         [],
         []
       ),
       humidite: createLineChart(
         `humChart_${safeNid}`,
         `Humidité (%) · Nid ${nid}`,
-        'rgba(255, 204, 0, 1)',
+        'rgba(88, 166, 255, 1)',
         [],
         []
       ),
       vibration: createLineChart(
         `vibrationChart_${safeNid}`,
         `Vibrations (m/s²) · Nid ${nid}`,
-        'rgba(255, 206, 86, 1)',
+        'rgba(255, 202, 58, 1)',
         [],
         []
       ),
       tension: createLineChart(
         `tensionChart_${safeNid}`,
         `Tension (V) · Nid ${nid}`,
-        'rgba(153, 102, 255, 1)',
+        'rgba(201, 123, 255, 1)',
         [],
         []
       )
