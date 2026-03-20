@@ -311,72 +311,6 @@ p {
   margin-top: 2px;
 }
 
-.log-wrap {
-  margin-top: 16px;
-}
-
-.log-card h2 {
-  margin-bottom: 8px;
-}
-
-.log-empty {
-  margin-bottom: 8px;
-  font-size: 0.95rem;
-}
-
-.alert-log-list {
-  list-style: none;
-  display: grid;
-  gap: 8px;
-  max-height: 280px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.alert-log-item {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: rgba(6, 19, 28, 0.55);
-  padding: 10px 12px;
-  color: #dbe8f2;
-}
-
-.alert-log-item.alert-log-critical {
-  border-color: rgba(255, 107, 107, 0.65);
-  background: rgba(84, 24, 24, 0.45);
-}
-
-.alert-log-item.alert-log-temperature {
-  border-color: rgba(255, 140, 66, 0.75);
-  background: rgba(92, 39, 14, 0.5);
-}
-
-.alert-log-item.alert-log-humidite {
-  border-color: rgba(88, 166, 255, 0.75);
-  background: rgba(16, 44, 83, 0.5);
-}
-
-.alert-log-item.alert-log-vibration {
-  border-color: rgba(255, 202, 58, 0.78);
-  background: rgba(79, 59, 10, 0.5);
-}
-
-.alert-log-item.alert-log-tension {
-  border-color: rgba(201, 123, 255, 0.78);
-  background: rgba(58, 24, 74, 0.5);
-}
-
-.alert-log-time {
-  font-size: 0.82rem;
-  color: #9db5c8;
-  margin-bottom: 4px;
-}
-
-.alert-log-message {
-  color: #f1f7fc;
-  font-weight: 600;
-}
-
 .nid-filter-card {
   display: flex;
   align-items: center;
@@ -449,20 +383,6 @@ button {
   cursor: pointer;
 }
 
-#jsonData {
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: #dbe8f2;
-  background: rgba(6, 19, 28, 0.45);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px;
-}
-
-#dataDisplay {
-  overflow-x: auto;
-}
-
 #apiStatus {
   margin-top: 10px;
   font-size: 0.86rem;
@@ -491,33 +411,6 @@ button {
 .footer-links a {
   color: #a6f4e8;
   text-decoration: none;
-}
-
-@media (min-width: 981px) {
-  .dashboard {
-    padding-left: 348px;
-  }
-
-  .log-wrap {
-    position: fixed;
-    top: 92px;
-    left: 14px;
-    width: 330px;
-    max-width: 330px;
-    margin: 0;
-    z-index: 25;
-  }
-
-  .log-card {
-    max-height: calc(100vh - 110px);
-    display: flex;
-    flex-direction: column;
-  }
-
-  .alert-log-list {
-    max-height: none;
-    flex: 1;
-  }
 }
 
 @media (max-width: 980px) {

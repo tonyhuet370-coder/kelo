@@ -26,12 +26,6 @@ let userRoleEl = null;
 let mqttClient = null;
 let lastPayloadSignature = null;
 let selectedNid = null;
-let alertState = {
-  temperature: false,
-  humidite: false,
-  vibration: false,
-  tension: false
-};
 
 const nidStates = new Map();
 
@@ -155,28 +149,6 @@ function applyNidVisibility() {
   });
 }
 
-function playAlertSound() {
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-    gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    oscillator.start();
-    oscillator.stop(ctx.currentTime + 0.15);
-    oscillator.onended = () => { if (ctx.state !== 'closed') ctx.close(); };
-  } catch (error) {
-    console.warn('Alerte sonore impossible :', error);
-  }
-}
-
 function updateUserHeader() {
   if (userInfoEl) userInfoEl.textContent = `Utilisateur : ${getAuthenticatedUser()}`;
   if (userRoleEl) userRoleEl.textContent = `Rôle : ${getCurrentUserRole()}`;
@@ -244,14 +216,17 @@ function createNidState(nid) {
       </div>
       <div class="chart-container">
         <h3>Humidité</h3>
+        <div class="alert" id="humAlert_${safeNid}" style="display: none;">⚠️ Humidité anormale pour les nids de tortues : le seuil critique. L'humidité doit rester entre 60 et 95 % pour assurer un environnement optimal aux œufs</div>
         <canvas id="humChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Vibrations</h3>
+        <div class="alert" id="vibAlert_${safeNid}" style="display: none;">⚠️ Vibrations élevées dans le nid : le seuil critique. Les vibrations excessives peuvent déranger et endommager les œufs. Les niveaux doivent rester entre 3,0 et 4,5 m/s²</div>
         <canvas id="vibrationChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Tension</h3>
+        <div class="alert" id="tensionAlert_${safeNid}" style="display: none;">⚠️ Tension anormale</div>
         <canvas id="tensionChart_${safeNid}"></canvas>
       </div>
     </div>
@@ -336,17 +311,23 @@ function updateAlerts(state, metrics) {
 
   const humAlert = document.getElementById(`humAlert_${safeNid}`);
   if (humAlert) {
-    humAlert.style.display = 'none';
+    const isAlert = Number.isFinite(metrics.humidite)
+      && (metrics.humidite < ALERT_LIMITS.humidite.min || metrics.humidite > ALERT_LIMITS.humidite.max);
+    humAlert.style.display = isAlert ? 'block' : 'none';
   }
 
   const vibAlert = document.getElementById(`vibAlert_${safeNid}`);
   if (vibAlert) {
-    vibAlert.style.display = 'none';
+    const isAlert = Number.isFinite(metrics.vibration)
+      && (metrics.vibration < ALERT_LIMITS.vibration.min || metrics.vibration > ALERT_LIMITS.vibration.max);
+    vibAlert.style.display = isAlert ? 'block' : 'none';
   }
 
   const tensionAlert = document.getElementById(`tensionAlert_${safeNid}`);
   if (tensionAlert) {
-    tensionAlert.style.display = 'none';
+    const isAlert = Number.isFinite(metrics.tension)
+      && (metrics.tension < ALERT_LIMITS.tension.min || metrics.tension > ALERT_LIMITS.tension.max);
+    tensionAlert.style.display = isAlert ? 'block' : 'none';
   }
 }
 
@@ -414,9 +395,6 @@ function updateCharts(payload, topic) {
 
   const normalized = payload.data ?? payload;
   if (!normalized || typeof normalized !== 'object') return;
-
-  const jsonDisplay = document.getElementById('jsonData');
-  if (jsonDisplay) jsonDisplay.textContent = JSON.stringify(normalized, null, 2);
 
   const nid = extractNid(topic, normalized);
   const state = getNidState(nid);

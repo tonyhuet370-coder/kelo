@@ -46,24 +46,21 @@ if %errorlevel% neq 0 (
 
 REM Configuration du .env
 echo  Configuration du .env...
-ssh !NAS_USER!@!NAS_IP! << EOF
-cd /volume1/docker/kelo
-cat > .env << INNER_EOF
-WEB_PORT=!WEB_PORT!
-SIMULATEUR_PORT=5000
-INNER_EOF
-echo ✓ .env créé
-EOF
+ssh !NAS_USER!@!NAS_IP! "cd /volume1/docker/kelo && printf 'WEB_PORT=!WEB_PORT!\nSIMULATEUR_PORT=5000\n' > .env && echo .env cree"
+if %errorlevel% neq 0 (
+    echo  Erreur lors de la configuration .env
+    pause
+    exit /b 1
+)
 
 REM Démarrer Docker
 echo  Démarrage des conteneurs...
-ssh !NAS_USER!@!NAS_IP! << EOF
-cd /volume1/docker/kelo
-docker-compose down 2>/dev/null
-docker-compose up -d
-sleep 3
-docker-compose ps
-EOF
+ssh !NAS_USER!@!NAS_IP! "cd /volume1/docker/kelo && docker-compose down 2>/dev/null && docker-compose up -d && sleep 3 && docker-compose ps"
+if %errorlevel% neq 0 (
+    echo  Erreur lors du démarrage des conteneurs
+    pause
+    exit /b 1
+)
 
 echo.
 echo  Déploiement réussi!
