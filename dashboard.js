@@ -338,9 +338,27 @@ function updateNidCharts(state, metrics, timeLabel) {
   return { hasTemperature, hasHumidite, hasVibration, hasTension };
 }
 
+function parseMetricNumber(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : NaN;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value
+      .trim()
+      .replace(',', '.')
+      .replace(/[^0-9.+-]/g, '');
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : NaN;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
 function pickNumber(...values) {
   for (const value of values) {
-    const parsed = Number(value);
+    const parsed = parseMetricNumber(value);
     if (Number.isFinite(parsed)) return parsed;
   }
   return NaN;
@@ -369,9 +387,9 @@ function updateCharts(payload, topic) {
 
   const metrics = {
     temperature: pickNumber(normalized.temperature, normalized.temp),
-    humidite: pickNumber(normalized.humidite, normalized.humidity, normalized.hum),
-    vibration: pickNumber(normalized.vibration, normalized.vib),
-    tension: pickNumber(normalized.tension, normalized.sound)
+    humidite: pickNumber(normalized.humidite, normalized.humidity, normalized.hum, normalized.moisture),
+    vibration: pickNumber(normalized.vibration, normalized.vibrations, normalized.vib),
+    tension: pickNumber(normalized.tension, normalized.voltage, normalized.sound)
   };
 
   const time = new Date().toLocaleTimeString();
