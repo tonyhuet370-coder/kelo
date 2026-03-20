@@ -171,7 +171,7 @@ function getMetricLabel(metric) {
   return metric;
 }
 
-function appendAlertLog(message, tone) {
+function appendAlertLog(message, metric) {
   if (!alertLogListEl) return;
 
   if (alertLogEmptyEl) {
@@ -179,7 +179,7 @@ function appendAlertLog(message, tone) {
   }
 
   const item = document.createElement('li');
-  item.className = `alert-log-item ${tone === 'normal' ? 'alert-log-normal' : 'alert-log-critical'}`;
+  item.className = `alert-log-item alert-log-critical alert-log-${metric}`;
 
   const time = document.createElement('div');
   time.className = 'alert-log-time';
@@ -213,7 +213,7 @@ function logAlertTransition(state, metric, isAlertNow, value) {
   }
 
   const direction = value < limits.min ? 'trop basse' : 'trop élevée';
-  appendAlertLog(`${metricLabel} ${direction} chez le Nid ${state.nid} (${valueText})`, 'critical');
+  appendAlertLog(`${metricLabel} ${direction} chez le Nid ${state.nid} (${valueText})`, metric);
 
   state.alertStatus[metric] = isAlertNow;
 }

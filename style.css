@@ -338,9 +338,24 @@ p {
   background: rgba(84, 24, 24, 0.45);
 }
 
-.alert-log-item.alert-log-normal {
-  border-color: rgba(45, 212, 191, 0.45);
-  background: rgba(10, 74, 64, 0.35);
+.alert-log-item.alert-log-temperature {
+  border-color: rgba(255, 140, 66, 0.75);
+  background: rgba(92, 39, 14, 0.5);
+}
+
+.alert-log-item.alert-log-humidite {
+  border-color: rgba(88, 166, 255, 0.75);
+  background: rgba(16, 44, 83, 0.5);
+}
+
+.alert-log-item.alert-log-vibration {
+  border-color: rgba(255, 202, 58, 0.78);
+  background: rgba(79, 59, 10, 0.5);
+}
+
+.alert-log-item.alert-log-tension {
+  border-color: rgba(201, 123, 255, 0.78);
+  background: rgba(58, 24, 74, 0.5);
 }
 
 .alert-log-time {
