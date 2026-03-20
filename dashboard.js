@@ -7,10 +7,13 @@ const MAX_POINTS = 12;
 const AUTH_KEY = 'keloniaAuth';
 const ALERT_LIMITS = {
   temperature: { min: 24, max: 34 },
-  humidite: { min: 75, max: 85 },
-  vibration: { min: 3.7, max: 4.0 },
-  tension: { min: 1.0, max: 4.0 }
+  humidite: { min: 60, max: 95 },
+  vibration: { min: 3.0, max: 4.5 },
+  tension: { min: 0.5, max: 4.5 }
 };
+
+const USER_KEY = 'keloniaUser';
+const ROLE_KEY = 'keloniaRole';
 
 let tempEl = null;
 let humEl = null;
@@ -18,11 +21,17 @@ let vibEl = null;
 let soundEl = null;
 let nidSelectEl = null;
 let logoutBtnEl = null;
-let alertLogListEl = null;
-let alertLogEmptyEl = null;
+let userInfoEl = null;
+let userRoleEl = null;
 let mqttClient = null;
 let lastPayloadSignature = null;
 let selectedNid = null;
+let alertState = {
+  temperature: false,
+  humidite: false,
+  vibration: false,
+  tension: false
+};
 
 const nidStates = new Map();
 
@@ -82,9 +91,9 @@ function initDomRefs() {
   vibEl = document.getElementById('vib-value');
   soundEl = document.getElementById('sound-value');
   nidSelectEl = document.getElementById('nidSelect');
+  userInfoEl = document.getElementById('userInfo');
+  userRoleEl = document.getElementById('userRole');
   logoutBtnEl = document.getElementById('logoutBtn');
-  alertLogListEl = document.getElementById('alertLogList');
-  alertLogEmptyEl = document.getElementById('alertLogEmpty');
 
   if (nidSelectEl) {
     nidSelectEl.addEventListener('change', () => {
@@ -97,7 +106,8 @@ function initDomRefs() {
   if (logoutBtnEl) {
     logoutBtnEl.addEventListener('click', () => {
       localStorage.removeItem(AUTH_KEY);
-      localStorage.removeItem('keloniaUser');
+      localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(ROLE_KEY);
       stopRealtimeUpdates();
       window.location.href = 'login.html';
     });
@@ -110,6 +120,30 @@ function ensureAuthenticated() {
   return false;
 }
 
+function getAuthenticatedUser() {
+  return localStorage.getItem(USER_KEY) || 'inconnu';
+}
+
+function getCurrentUserRole() {
+  return localStorage.getItem(ROLE_KEY) || 'viewer';
+}
+
+function applyRoleAccessControl() {
+  const role = getCurrentUserRole();
+  if (role !== 'admin') {
+    if (nidSelectEl) nidSelectEl.disabled = true;
+    const infoCard = document.createElement('p');
+    infoCard.style.fontSize = '0.9rem';
+    infoCard.style.color = '#f6c23e';
+    infoCard.textContent = 'Mode lecteur : sélection de nid désactivée. Contactez un administrateur pour modifier les paramètres.';
+    const filterWrap = document.querySelector('.nid-filter-wrap');
+    if (filterWrap && !filterWrap.querySelector('.role-info')) {
+      infoCard.className = 'role-info';
+      filterWrap.appendChild(infoCard);
+    }
+  }
+}
+
 function applyNidVisibility() {
   const container = document.getElementById('nidsContainer');
   if (!container) return;
@@ -119,6 +153,33 @@ function applyNidVisibility() {
     const nid = block.getAttribute('data-nid');
     block.style.display = selectedNid && nid === selectedNid ? 'block' : 'none';
   });
+}
+
+function playAlertSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+    gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.15);
+    oscillator.onended = () => { if (ctx.state !== 'closed') ctx.close(); };
+  } catch (error) {
+    console.warn('Alerte sonore impossible :', error);
+  }
+}
+
+function updateUserHeader() {
+  if (userInfoEl) userInfoEl.textContent = `Utilisateur : ${getAuthenticatedUser()}`;
+  if (userRoleEl) userRoleEl.textContent = `Rôle : ${getCurrentUserRole()}`;
 }
 
 function updateSummaryCardsForSelected() {
@@ -163,61 +224,6 @@ function createSeries() {
   };
 }
 
-function getMetricLabel(metric) {
-  if (metric === 'temperature') return 'Température';
-  if (metric === 'humidite') return 'Humidité';
-  if (metric === 'vibration') return 'Vibration';
-  if (metric === 'tension') return 'Tension';
-  return metric;
-}
-
-function appendAlertLog(message, metric) {
-  if (!alertLogListEl) return;
-
-  if (alertLogEmptyEl) {
-    alertLogEmptyEl.style.display = 'none';
-  }
-
-  const item = document.createElement('li');
-  item.className = `alert-log-item alert-log-critical alert-log-${metric}`;
-
-  const time = document.createElement('div');
-  time.className = 'alert-log-time';
-  time.textContent = new Date().toLocaleTimeString();
-
-  const text = document.createElement('div');
-  text.className = 'alert-log-message';
-  text.textContent = message;
-
-  item.appendChild(time);
-  item.appendChild(text);
-
-  alertLogListEl.prepend(item);
-
-  while (alertLogListEl.children.length > 80) {
-    alertLogListEl.removeChild(alertLogListEl.lastElementChild);
-  }
-}
-
-function logAlertTransition(state, metric, isAlertNow, value) {
-  const previous = Boolean(state.alertStatus[metric]);
-  if (previous === isAlertNow || !Number.isFinite(value)) return;
-
-  const metricLabel = getMetricLabel(metric);
-  const limits = ALERT_LIMITS[metric];
-  const valueText = value.toFixed(2);
-
-  if (!isAlertNow) {
-    state.alertStatus[metric] = isAlertNow;
-    return;
-  }
-
-  const direction = value < limits.min ? 'trop basse' : 'trop élevée';
-  appendAlertLog(`${metricLabel} ${direction} chez le Nid ${state.nid} (${valueText})`, metric);
-
-  state.alertStatus[metric] = isAlertNow;
-}
-
 function createNidState(nid) {
   const container = document.getElementById('nidsContainer');
   if (!container) return null;
@@ -233,22 +239,22 @@ function createNidState(nid) {
     <div class="charts nid-charts">
       <div class="chart-container">
         <h3>Température</h3>
-        <div class="alert" id="tempAlert_${safeNid}" style="display: none;">Température trop élevée pour les nids de tortues : le seuil critique. Les nids de tortues deviennent dangereux lorsque la température du sable dépasse environ 33–34 °C</div>
+        <div class="alert" id="tempAlert_${safeNid}" style="display: none;">⚠️ Température trop élevée pour les nids de tortues : le seuil critique. Les nids de tortues deviennent dangereux lorsque la température du sable dépasse environ 33–34 °C</div>
         <canvas id="tempChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Humidité</h3>
-        <div class="alert" id="humAlert_${safeNid}" style="display: none;"> Humidité anormale pour les nids de tortues : le seuil critique. L'humidité doit rester entre 60 et 95 % pour assurer un environnement optimal aux œufs</div>
+        <div class="alert" id="humAlert_${safeNid}" style="display: none;">⚠️ Humidité anormale pour les nids de tortues : le seuil critique. L'humidité doit rester entre 60 et 95 % pour assurer un environnement optimal aux œufs</div>
         <canvas id="humChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Vibrations</h3>
-        <div class="alert" id="vibAlert_${safeNid}" style="display: none;">Vibrations élevées dans le nid : le seuil critique. Les vibrations excessives peuvent déranger et endommager les œufs. Les niveaux doivent rester entre 3,0 et 4,5 m/s²</div>
+        <div class="alert" id="vibAlert_${safeNid}" style="display: none;">⚠️ Vibrations élevées dans le nid : le seuil critique. Les vibrations excessives peuvent déranger et endommager les œufs. Les niveaux doivent rester entre 3,0 et 4,5 m/s²</div>
         <canvas id="vibrationChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Tension</h3>
-        <div class="alert" id="tensionAlert_${safeNid}" style="display: none;"> Tension anormale</div>
+        <div class="alert" id="tensionAlert_${safeNid}" style="display: none;">⚠️ Tension anormale</div>
         <canvas id="tensionChart_${safeNid}"></canvas>
       </div>
     </div>
@@ -260,12 +266,6 @@ function createNidState(nid) {
     nid,
     safeNid,
     lastMetrics: null,
-    alertStatus: {
-      temperature: false,
-      humidite: false,
-      vibration: false,
-      tension: false
-    },
     series: {
       temperature: createSeries(),
       humidite: createSeries(),
@@ -276,28 +276,28 @@ function createNidState(nid) {
       temperature: createLineChart(
         `tempChart_${safeNid}`,
         `Température (°C) · Nid ${nid}`,
-        'rgba(255, 140, 66, 1)',
+        'rgba(75, 192, 192, 1)',
         [],
         []
       ),
       humidite: createLineChart(
         `humChart_${safeNid}`,
         `Humidité (%) · Nid ${nid}`,
-        'rgba(88, 166, 255, 1)',
+        'rgba(255, 204, 0, 1)',
         [],
         []
       ),
       vibration: createLineChart(
         `vibrationChart_${safeNid}`,
         `Vibrations (m/s²) · Nid ${nid}`,
-        'rgba(255, 202, 58, 1)',
+        'rgba(255, 206, 86, 1)',
         [],
         []
       ),
       tension: createLineChart(
         `tensionChart_${safeNid}`,
         `Tension (V) · Nid ${nid}`,
-        'rgba(201, 123, 255, 1)',
+        'rgba(153, 102, 255, 1)',
         [],
         []
       )
@@ -330,35 +330,50 @@ function pushPoint(series, value, timeLabel) {
 
 function updateAlerts(state, metrics) {
   const safeNid = state.safeNid;
-  let isTempAlert = false;
-  let isHumAlert = false;
-  let isVibAlert = false;
-  let isTensionAlert = false;
 
   const tempAlert = document.getElementById(`tempAlert_${safeNid}`);
-  isTempAlert = Number.isFinite(metrics.temperature)
-    && (metrics.temperature < ALERT_LIMITS.temperature.min || metrics.temperature > ALERT_LIMITS.temperature.max);
-  if (tempAlert) tempAlert.style.display = isTempAlert ? 'block' : 'none';
+  if (tempAlert) {
+    const isAlert = Number.isFinite(metrics.temperature)
+      && (metrics.temperature < ALERT_LIMITS.temperature.min || metrics.temperature > ALERT_LIMITS.temperature.max);
+    tempAlert.style.display = isAlert ? 'block' : 'none';
+    if (isAlert && !alertState.temperature) {
+      playAlertSound();
+    }
+    alertState.temperature = isAlert;
+  }
 
   const humAlert = document.getElementById(`humAlert_${safeNid}`);
-  isHumAlert = Number.isFinite(metrics.humidite)
-    && (metrics.humidite < ALERT_LIMITS.humidite.min || metrics.humidite > ALERT_LIMITS.humidite.max);
-  if (humAlert) humAlert.style.display = isHumAlert ? 'block' : 'none';
+  if (humAlert) {
+    const isAlert = Number.isFinite(metrics.humidite)
+      && (metrics.humidite < ALERT_LIMITS.humidite.min || metrics.humidite > ALERT_LIMITS.humidite.max);
+    humAlert.style.display = isAlert ? 'block' : 'none';
+    if (isAlert && !alertState.humidite) {
+      playAlertSound();
+    }
+    alertState.humidite = isAlert;
+  }
 
   const vibAlert = document.getElementById(`vibAlert_${safeNid}`);
-  isVibAlert = Number.isFinite(metrics.vibration)
-    && (metrics.vibration < ALERT_LIMITS.vibration.min || metrics.vibration > ALERT_LIMITS.vibration.max);
-  if (vibAlert) vibAlert.style.display = isVibAlert ? 'block' : 'none';
+  if (vibAlert) {
+    const isAlert = Number.isFinite(metrics.vibration)
+      && (metrics.vibration < ALERT_LIMITS.vibration.min || metrics.vibration > ALERT_LIMITS.vibration.max);
+    vibAlert.style.display = isAlert ? 'block' : 'none';
+    if (isAlert && !alertState.vibration) {
+      playAlertSound();
+    }
+    alertState.vibration = isAlert;
+  }
 
   const tensionAlert = document.getElementById(`tensionAlert_${safeNid}`);
-  isTensionAlert = Number.isFinite(metrics.tension)
-    && (metrics.tension < ALERT_LIMITS.tension.min || metrics.tension > ALERT_LIMITS.tension.max);
-  if (tensionAlert) tensionAlert.style.display = isTensionAlert ? 'block' : 'none';
-
-  logAlertTransition(state, 'temperature', isTempAlert, metrics.temperature);
-  logAlertTransition(state, 'humidite', isHumAlert, metrics.humidite);
-  logAlertTransition(state, 'vibration', isVibAlert, metrics.vibration);
-  logAlertTransition(state, 'tension', isTensionAlert, metrics.tension);
+  if (tensionAlert) {
+    const isAlert = Number.isFinite(metrics.tension)
+      && (metrics.tension < ALERT_LIMITS.tension.min || metrics.tension > ALERT_LIMITS.tension.max);
+    tensionAlert.style.display = isAlert ? 'block' : 'none';
+    if (isAlert && !alertState.tension) {
+      playAlertSound();
+    }
+    alertState.tension = isAlert;
+  }
 }
 
 function updateNidCharts(state, metrics, timeLabel) {
@@ -404,60 +419,12 @@ function updateNidCharts(state, metrics, timeLabel) {
   return { hasTemperature, hasHumidite, hasVibration, hasTension };
 }
 
-function parseMetricNumber(value) {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : NaN;
-  }
-
-  if (typeof value === 'string') {
-    const normalized = value
-      .trim()
-      .replace(',', '.')
-      .replace(/[^0-9.+-]/g, '');
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : NaN;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : NaN;
-}
-
 function pickNumber(...values) {
   for (const value of values) {
-    const parsed = parseMetricNumber(value);
+    const parsed = Number(value);
     if (Number.isFinite(parsed)) return parsed;
   }
   return NaN;
-}
-
-function normalizeKey(key) {
-  return String(key || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-}
-
-function pickMetricFromObject(source, aliases) {
-  if (!source || typeof source !== 'object') return NaN;
-
-  const wanted = new Set(aliases.map(normalizeKey));
-  const directValues = [];
-  const normalizedValues = [];
-
-  for (const alias of aliases) {
-    if (Object.prototype.hasOwnProperty.call(source, alias)) {
-      directValues.push(source[alias]);
-    }
-  }
-
-  for (const [key, value] of Object.entries(source)) {
-    if (wanted.has(normalizeKey(key))) {
-      normalizedValues.push(value);
-    }
-  }
-
-  return pickNumber(...directValues, ...normalizedValues);
 }
 
 function updateSummaryCards(metrics, flags) {
@@ -482,10 +449,10 @@ function updateCharts(payload, topic) {
   if (!state) return;
 
   const metrics = {
-    temperature: pickMetricFromObject(normalized, ['temperature', 'temp']),
-    humidite: pickMetricFromObject(normalized, ['humidite', 'humidity', 'hum', 'moisture', 'humidité']),
-    vibration: pickMetricFromObject(normalized, ['vibration', 'vibrations', 'vib', 'acceleration', 'accelerometer']),
-    tension: pickMetricFromObject(normalized, ['tension', 'voltage', 'sound', 'volt'])
+    temperature: pickNumber(normalized.temperature, normalized.temp),
+    humidite: pickNumber(normalized.humidite, normalized.humidity, normalized.hum),
+    vibration: pickNumber(normalized.vibration, normalized.vib),
+    tension: pickNumber(normalized.tension, normalized.sound)
   };
 
   const time = new Date().toLocaleTimeString();
@@ -557,6 +524,8 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
 function initDashboard() {
   if (!ensureAuthenticated()) return;
   initDomRefs();
+  updateUserHeader();
+  applyRoleAccessControl();
   startMqtt();
 }
 

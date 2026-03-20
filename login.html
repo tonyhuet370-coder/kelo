@@ -50,8 +50,14 @@
 
   <script>
     const AUTH_KEY = 'keloniaAuth';
-    const DEMO_USER = 'admin';
-    const DEMO_PASS = 'admin';
+    const USER_KEY = 'keloniaUser';
+    const ROLE_KEY = 'keloniaRole';
+
+    const USERS = {
+      admin: { password: 'admin', role: 'admin' },
+      viewer: { password: 'viewer', role: 'viewer' },
+      gardien: { password: 'tortue', role: 'operator' }
+    };
 
     if (localStorage.getItem(AUTH_KEY) === '1') {
       window.location.href = 'dashboard.html';
@@ -65,14 +71,16 @@
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
 
-      if (username === DEMO_USER && password === DEMO_PASS) {
-        localStorage.setItem(AUTH_KEY, '1');
-        localStorage.setItem('keloniaUser', username);
-        window.location.href = 'dashboard.html';
-        return;
-      }
+      const user = USERS[username];
+    if (user && password === user.password) {
+      localStorage.setItem(AUTH_KEY, '1');
+      localStorage.setItem(USER_KEY, username);
+      localStorage.setItem(ROLE_KEY, user.role);
+      window.location.href = 'dashboard.html';
+      return;
+    }
 
-      errorEl.textContent = 'Identifiants incorrects.';
+    errorEl.textContent = 'Identifiants incorrects.';
     });
   </script>
 </body>
