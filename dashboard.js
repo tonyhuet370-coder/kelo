@@ -207,12 +207,13 @@ function logAlertTransition(state, metric, isAlertNow, value) {
   const limits = ALERT_LIMITS[metric];
   const valueText = value.toFixed(2);
 
-  if (isAlertNow) {
-    const direction = value < limits.min ? 'trop basse' : 'trop élevée';
-    appendAlertLog(`${metricLabel} ${direction} chez le Nid ${state.nid} (${valueText})`, 'critical');
-  } else {
-    appendAlertLog(`${metricLabel} revenue à la normale chez le Nid ${state.nid} (${valueText})`, 'normal');
+  if (!isAlertNow) {
+    state.alertStatus[metric] = isAlertNow;
+    return;
   }
+
+  const direction = value < limits.min ? 'trop basse' : 'trop élevée';
+  appendAlertLog(`${metricLabel} ${direction} chez le Nid ${state.nid} (${valueText})`, 'critical');
 
   state.alertStatus[metric] = isAlertNow;
 }
