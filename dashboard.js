@@ -7,8 +7,8 @@ const MAX_POINTS = 12;
 const AUTH_KEY = 'keloniaAuth';
 const ALERT_LIMITS = {
   temperature: { min: 24, max: 34 },
-  humidite: { min: 60, max: 95 },
-  vibration: { min: 3.0, max: 4.5 },
+  humidite: { min: 75, max: 85 },
+  vibration: { min: 3.7, max: 4.0 },
   tension: { min: 0.5, max: 4.5 }
 };
 
