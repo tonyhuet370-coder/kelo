@@ -6,7 +6,7 @@ const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
 const MAX_POINTS = 12;
 const AUTH_KEY = 'keloniaAuth';
 const ALERT_LIMITS = {
-  temperature: { min: 24, max: 32 },
+  temperature: { min: 24, max: 34 },
   humidite: { min: 60, max: 95 },
   vibration: { min: 3.0, max: 4.5 },
   tension: { min: 0.5, max: 4.5 }
@@ -174,17 +174,17 @@ function createNidState(nid) {
     <div class="charts nid-charts">
       <div class="chart-container">
         <h3>Température</h3>
-        <div class="alert" id="tempAlert_${safeNid}" style="display: none;">⚠️ Température anormale</div>
+        <div class="alert" id="tempAlert_${safeNid}" style="display: none;">⚠️ Température trop élevée pour les nids de tortues : le seuil critique. Les nids de tortues deviennent dangereux lorsque la température du sable dépasse environ 33–34 °C</div>
         <canvas id="tempChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Humidité</h3>
-        <div class="alert" id="humAlert_${safeNid}" style="display: none;">⚠️ Humidité anormale</div>
+        <div class="alert" id="humAlert_${safeNid}" style="display: none;">⚠️ Humidité anormale pour les nids de tortues : le seuil critique. L'humidité doit rester entre 60 et 95 % pour assurer un environnement optimal aux œufs</div>
         <canvas id="humChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Vibrations</h3>
-        <div class="alert" id="vibAlert_${safeNid}" style="display: none;">⚠️ Vibrations élevées</div>
+        <div class="alert" id="vibAlert_${safeNid}" style="display: none;">⚠️ Vibrations élevées dans le nid : le seuil critique. Les vibrations excessives peuvent déranger et endommager les œufs. Les niveaux doivent rester entre 3,0 et 4,5 m/s²</div>
         <canvas id="vibrationChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
