@@ -9,7 +9,7 @@ const ALERT_LIMITS = {
   temperature: { min: 24, max: 34 },
   humidite: { min: 75, max: 85 },
   vibration: { min: 3.7, max: 4.0 },
-  tension: { min: 0.5, max: 4.5 }
+  tension: { min: 1.0, max: 4.0 }
 };
 
 let tempEl = null;
