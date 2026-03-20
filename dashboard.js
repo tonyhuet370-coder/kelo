@@ -18,8 +18,6 @@ let vibEl = null;
 let soundEl = null;
 let nidSelectEl = null;
 let logoutBtnEl = null;
-let alertLogListEl = null;
-let alertLogEmptyEl = null;
 let mqttClient = null;
 let lastPayloadSignature = null;
 let selectedNid = null;
@@ -83,8 +81,6 @@ function initDomRefs() {
   soundEl = document.getElementById('sound-value');
   nidSelectEl = document.getElementById('nidSelect');
   logoutBtnEl = document.getElementById('logoutBtn');
-  alertLogListEl = document.getElementById('alertLogList');
-  alertLogEmptyEl = document.getElementById('alertLogEmpty');
 
   if (nidSelectEl) {
     nidSelectEl.addEventListener('change', () => {
@@ -163,61 +159,6 @@ function createSeries() {
   };
 }
 
-function getMetricLabel(metric) {
-  if (metric === 'temperature') return 'Température';
-  if (metric === 'humidite') return 'Humidité';
-  if (metric === 'vibration') return 'Vibration';
-  if (metric === 'tension') return 'Tension';
-  return metric;
-}
-
-function appendAlertLog(message, metric) {
-  if (!alertLogListEl) return;
-
-  if (alertLogEmptyEl) {
-    alertLogEmptyEl.style.display = 'none';
-  }
-
-  const item = document.createElement('li');
-  item.className = `alert-log-item alert-log-critical alert-log-${metric}`;
-
-  const time = document.createElement('div');
-  time.className = 'alert-log-time';
-  time.textContent = new Date().toLocaleTimeString();
-
-  const text = document.createElement('div');
-  text.className = 'alert-log-message';
-  text.textContent = message;
-
-  item.appendChild(time);
-  item.appendChild(text);
-
-  alertLogListEl.prepend(item);
-
-  while (alertLogListEl.children.length > 80) {
-    alertLogListEl.removeChild(alertLogListEl.lastElementChild);
-  }
-}
-
-function logAlertTransition(state, metric, isAlertNow, value) {
-  const previous = Boolean(state.alertStatus[metric]);
-  if (previous === isAlertNow || !Number.isFinite(value)) return;
-
-  const metricLabel = getMetricLabel(metric);
-  const limits = ALERT_LIMITS[metric];
-  const valueText = value.toFixed(2);
-
-  if (!isAlertNow) {
-    state.alertStatus[metric] = isAlertNow;
-    return;
-  }
-
-  const direction = value < limits.min ? 'trop basse' : 'trop élevée';
-  appendAlertLog(`${metricLabel} ${direction} chez le Nid ${state.nid} (${valueText})`, metric);
-
-  state.alertStatus[metric] = isAlertNow;
-}
-
 function createNidState(nid) {
   const container = document.getElementById('nidsContainer');
   if (!container) return null;
@@ -238,17 +179,14 @@ function createNidState(nid) {
       </div>
       <div class="chart-container">
         <h3>Humidité</h3>
-        <div class="alert" id="humAlert_${safeNid}" style="display: none;"> Humidité anormale pour les nids de tortues : le seuil critique. L'humidité doit rester entre 60 et 95 % pour assurer un environnement optimal aux œufs</div>
         <canvas id="humChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Vibrations</h3>
-        <div class="alert" id="vibAlert_${safeNid}" style="display: none;">Vibrations élevées dans le nid : le seuil critique. Les vibrations excessives peuvent déranger et endommager les œufs. Les niveaux doivent rester entre 3,0 et 4,5 m/s²</div>
         <canvas id="vibrationChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
         <h3>Tension</h3>
-        <div class="alert" id="tensionAlert_${safeNid}" style="display: none;"> Tension anormale</div>
         <canvas id="tensionChart_${safeNid}"></canvas>
       </div>
     </div>
@@ -260,12 +198,6 @@ function createNidState(nid) {
     nid,
     safeNid,
     lastMetrics: null,
-    alertStatus: {
-      temperature: false,
-      humidite: false,
-      vibration: false,
-      tension: false
-    },
     series: {
       temperature: createSeries(),
       humidite: createSeries(),
@@ -276,28 +208,28 @@ function createNidState(nid) {
       temperature: createLineChart(
         `tempChart_${safeNid}`,
         `Température (°C) · Nid ${nid}`,
-        'rgba(255, 140, 66, 1)',
+        'rgba(75, 192, 192, 1)',
         [],
         []
       ),
       humidite: createLineChart(
         `humChart_${safeNid}`,
         `Humidité (%) · Nid ${nid}`,
-        'rgba(88, 166, 255, 1)',
+        'rgba(255, 204, 0, 1)',
         [],
         []
       ),
       vibration: createLineChart(
         `vibrationChart_${safeNid}`,
         `Vibrations (m/s²) · Nid ${nid}`,
-        'rgba(255, 202, 58, 1)',
+        'rgba(255, 206, 86, 1)',
         [],
         []
       ),
       tension: createLineChart(
         `tensionChart_${safeNid}`,
         `Tension (V) · Nid ${nid}`,
-        'rgba(201, 123, 255, 1)',
+        'rgba(153, 102, 255, 1)',
         [],
         []
       )
@@ -330,35 +262,28 @@ function pushPoint(series, value, timeLabel) {
 
 function updateAlerts(state, metrics) {
   const safeNid = state.safeNid;
-  let isTempAlert = false;
-  let isHumAlert = false;
-  let isVibAlert = false;
-  let isTensionAlert = false;
-
+  
   const tempAlert = document.getElementById(`tempAlert_${safeNid}`);
-  isTempAlert = Number.isFinite(metrics.temperature)
-    && (metrics.temperature < ALERT_LIMITS.temperature.min || metrics.temperature > ALERT_LIMITS.temperature.max);
-  if (tempAlert) tempAlert.style.display = isTempAlert ? 'block' : 'none';
+  if (tempAlert) {
+    const isAlert = Number.isFinite(metrics.temperature)
+      && (metrics.temperature < ALERT_LIMITS.temperature.min || metrics.temperature > ALERT_LIMITS.temperature.max);
+    tempAlert.style.display = isAlert ? 'block' : 'none';
+  }
 
   const humAlert = document.getElementById(`humAlert_${safeNid}`);
-  isHumAlert = Number.isFinite(metrics.humidite)
-    && (metrics.humidite < ALERT_LIMITS.humidite.min || metrics.humidite > ALERT_LIMITS.humidite.max);
-  if (humAlert) humAlert.style.display = isHumAlert ? 'block' : 'none';
+  if (humAlert) {
+    humAlert.style.display = 'none';
+  }
 
   const vibAlert = document.getElementById(`vibAlert_${safeNid}`);
-  isVibAlert = Number.isFinite(metrics.vibration)
-    && (metrics.vibration < ALERT_LIMITS.vibration.min || metrics.vibration > ALERT_LIMITS.vibration.max);
-  if (vibAlert) vibAlert.style.display = isVibAlert ? 'block' : 'none';
+  if (vibAlert) {
+    vibAlert.style.display = 'none';
+  }
 
   const tensionAlert = document.getElementById(`tensionAlert_${safeNid}`);
-  isTensionAlert = Number.isFinite(metrics.tension)
-    && (metrics.tension < ALERT_LIMITS.tension.min || metrics.tension > ALERT_LIMITS.tension.max);
-  if (tensionAlert) tensionAlert.style.display = isTensionAlert ? 'block' : 'none';
-
-  logAlertTransition(state, 'temperature', isTempAlert, metrics.temperature);
-  logAlertTransition(state, 'humidite', isHumAlert, metrics.humidite);
-  logAlertTransition(state, 'vibration', isVibAlert, metrics.vibration);
-  logAlertTransition(state, 'tension', isTensionAlert, metrics.tension);
+  if (tensionAlert) {
+    tensionAlert.style.display = 'none';
+  }
 }
 
 function updateNidCharts(state, metrics, timeLabel) {
