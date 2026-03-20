@@ -7,10 +7,13 @@ const MAX_POINTS = 12;
 const AUTH_KEY = 'keloniaAuth';
 const ALERT_LIMITS = {
   temperature: { min: 24, max: 34 },
-  humidite: { min: 75, max: 85 },
-  vibration: { min: 3.7, max: 4.0 },
-  tension: { min: 1.0, max: 4.0 }
+  humidite: { min: 60, max: 95 },
+  vibration: { min: 3.0, max: 4.5 },
+  tension: { min: 0.5, max: 4.5 }
 };
+
+const USER_KEY = 'keloniaUser';
+const ROLE_KEY = 'keloniaRole';
 
 let tempEl = null;
 let humEl = null;
@@ -18,9 +21,17 @@ let vibEl = null;
 let soundEl = null;
 let nidSelectEl = null;
 let logoutBtnEl = null;
+let userInfoEl = null;
+let userRoleEl = null;
 let mqttClient = null;
 let lastPayloadSignature = null;
 let selectedNid = null;
+let alertState = {
+  temperature: false,
+  humidite: false,
+  vibration: false,
+  tension: false
+};
 
 const nidStates = new Map();
 
@@ -80,6 +91,8 @@ function initDomRefs() {
   vibEl = document.getElementById('vib-value');
   soundEl = document.getElementById('sound-value');
   nidSelectEl = document.getElementById('nidSelect');
+  userInfoEl = document.getElementById('userInfo');
+  userRoleEl = document.getElementById('userRole');
   logoutBtnEl = document.getElementById('logoutBtn');
 
   if (nidSelectEl) {
@@ -93,7 +106,8 @@ function initDomRefs() {
   if (logoutBtnEl) {
     logoutBtnEl.addEventListener('click', () => {
       localStorage.removeItem(AUTH_KEY);
-      localStorage.removeItem('keloniaUser');
+      localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(ROLE_KEY);
       stopRealtimeUpdates();
       window.location.href = 'login.html';
     });
@@ -106,6 +120,30 @@ function ensureAuthenticated() {
   return false;
 }
 
+function getAuthenticatedUser() {
+  return localStorage.getItem(USER_KEY) || 'inconnu';
+}
+
+function getCurrentUserRole() {
+  return localStorage.getItem(ROLE_KEY) || 'viewer';
+}
+
+function applyRoleAccessControl() {
+  const role = getCurrentUserRole();
+  if (role !== 'admin') {
+    if (nidSelectEl) nidSelectEl.disabled = true;
+    const infoCard = document.createElement('p');
+    infoCard.style.fontSize = '0.9rem';
+    infoCard.style.color = '#f6c23e';
+    infoCard.textContent = 'Mode lecteur : sélection de nid désactivée. Contactez un administrateur pour modifier les paramètres.';
+    const filterWrap = document.querySelector('.nid-filter-wrap');
+    if (filterWrap && !filterWrap.querySelector('.role-info')) {
+      infoCard.className = 'role-info';
+      filterWrap.appendChild(infoCard);
+    }
+  }
+}
+
 function applyNidVisibility() {
   const container = document.getElementById('nidsContainer');
   if (!container) return;
@@ -115,6 +153,33 @@ function applyNidVisibility() {
     const nid = block.getAttribute('data-nid');
     block.style.display = selectedNid && nid === selectedNid ? 'block' : 'none';
   });
+}
+
+function playAlertSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+    gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.15);
+    oscillator.onended = () => { if (ctx.state !== 'closed') ctx.close(); };
+  } catch (error) {
+    console.warn('Alerte sonore impossible :', error);
+  }
+}
+
+function updateUserHeader() {
+  if (userInfoEl) userInfoEl.textContent = `Utilisateur : ${getAuthenticatedUser()}`;
+  if (userRoleEl) userRoleEl.textContent = `Rôle : ${getCurrentUserRole()}`;
 }
 
 function updateSummaryCardsForSelected() {
@@ -174,7 +239,7 @@ function createNidState(nid) {
     <div class="charts nid-charts">
       <div class="chart-container">
         <h3>Température</h3>
-        <div class="alert" id="tempAlert_${safeNid}" style="display: none;">Température trop élevée pour les nids de tortues : le seuil critique. Les nids de tortues deviennent dangereux lorsque la température du sable dépasse environ 33–34 °C</div>
+        <div class="alert" id="tempAlert_${safeNid}" style="display: none;">⚠️ Température trop élevée pour les nids de tortues : le seuil critique. Les nids de tortues deviennent dangereux lorsque la température du sable dépasse environ 33–34 °C</div>
         <canvas id="tempChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
@@ -262,7 +327,6 @@ function pushPoint(series, value, timeLabel) {
 
 function updateAlerts(state, metrics) {
   const safeNid = state.safeNid;
-  
   const tempAlert = document.getElementById(`tempAlert_${safeNid}`);
   if (tempAlert) {
     const isAlert = Number.isFinite(metrics.temperature)
@@ -329,60 +393,12 @@ function updateNidCharts(state, metrics, timeLabel) {
   return { hasTemperature, hasHumidite, hasVibration, hasTension };
 }
 
-function parseMetricNumber(value) {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : NaN;
-  }
-
-  if (typeof value === 'string') {
-    const normalized = value
-      .trim()
-      .replace(',', '.')
-      .replace(/[^0-9.+-]/g, '');
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : NaN;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : NaN;
-}
-
 function pickNumber(...values) {
   for (const value of values) {
-    const parsed = parseMetricNumber(value);
+    const parsed = Number(value);
     if (Number.isFinite(parsed)) return parsed;
   }
   return NaN;
-}
-
-function normalizeKey(key) {
-  return String(key || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-}
-
-function pickMetricFromObject(source, aliases) {
-  if (!source || typeof source !== 'object') return NaN;
-
-  const wanted = new Set(aliases.map(normalizeKey));
-  const directValues = [];
-  const normalizedValues = [];
-
-  for (const alias of aliases) {
-    if (Object.prototype.hasOwnProperty.call(source, alias)) {
-      directValues.push(source[alias]);
-    }
-  }
-
-  for (const [key, value] of Object.entries(source)) {
-    if (wanted.has(normalizeKey(key))) {
-      normalizedValues.push(value);
-    }
-  }
-
-  return pickNumber(...directValues, ...normalizedValues);
 }
 
 function updateSummaryCards(metrics, flags) {
@@ -407,10 +423,10 @@ function updateCharts(payload, topic) {
   if (!state) return;
 
   const metrics = {
-    temperature: pickMetricFromObject(normalized, ['temperature', 'temp']),
-    humidite: pickMetricFromObject(normalized, ['humidite', 'humidity', 'hum', 'moisture', 'humidité']),
-    vibration: pickMetricFromObject(normalized, ['vibration', 'vibrations', 'vib', 'acceleration', 'accelerometer']),
-    tension: pickMetricFromObject(normalized, ['tension', 'voltage', 'sound', 'volt'])
+    temperature: pickNumber(normalized.temperature, normalized.temp),
+    humidite: pickNumber(normalized.humidite, normalized.humidity, normalized.hum),
+    vibration: pickNumber(normalized.vibration, normalized.vib),
+    tension: pickNumber(normalized.tension, normalized.sound)
   };
 
   const time = new Date().toLocaleTimeString();
@@ -482,6 +498,8 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
 function initDashboard() {
   if (!ensureAuthenticated()) return;
   initDomRefs();
+  updateUserHeader();
+  applyRoleAccessControl();
   startMqtt();
 }
 
