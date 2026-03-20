@@ -44,10 +44,11 @@ def generate_data(nid):
     """Génère les données du simulateur de capteurs"""
     data = {
         "nid": nid,
-        "temperature": round(random.uniform(20.0, 30.0), 2),
-        "humidite": round(random.randint(70, 90), 2),
-        "vibration": round(random.uniform(3.5, 4.2), 2),
-        "tension": round(random.uniform(0.0, 4.2), 2),
+        # Plages élargies pour tester visuellement les alertes sur tous les capteurs.
+        "temperature": round(random.uniform(20.0, 38.0), 2),
+        "humidite": round(random.uniform(55.0, 98.0), 2),
+        "vibration": round(random.uniform(2.6, 4.9), 2),
+        "tension": round(random.uniform(0.0, 4.9), 2),
         "horodatage": datetime.utcnow().isoformat() + "Z"
     }
     with latest_lock:
