@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tableau de bord - Kélonia</title>
-  <link rel="stylesheet" href="style.css?v=20260320-cleanup-1">
+  <link rel="stylesheet" href="style.css?v=20260320-notif-back-1">
   <script src="vendor/chart.min.js"></script>
   <script src="vendor/mqtt.min.js"></script>
 </head>
@@ -64,6 +64,14 @@
       </div>
     </section>
 
+    <section class="container log-wrap">
+      <div class="card log-card">
+        <h2>Journal des alertes</h2>
+        <p id="alertLogEmpty" class="log-empty">Aucune alerte détectée pour le moment.</p>
+        <ul id="alertLogList" class="alert-log-list"></ul>
+      </div>
+    </section>
+
     <section id="nidsContainer" class="nids-container"></section>
   </main>
 
@@ -77,6 +85,6 @@
     </div>
   </footer>
 
-  <script src="dashboard.js?v=20260320-cleanup-1"></script>
+  <script src="dashboard.js?v=20260320-notif-back-1"></script>
 </body>
 </html>

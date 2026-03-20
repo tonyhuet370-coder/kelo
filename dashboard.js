@@ -23,6 +23,8 @@ let nidSelectEl = null;
 let logoutBtnEl = null;
 let userInfoEl = null;
 let userRoleEl = null;
+let alertLogListEl = null;
+let alertLogEmptyEl = null;
 let mqttClient = null;
 let lastPayloadSignature = null;
 let selectedNid = null;
@@ -87,6 +89,8 @@ function initDomRefs() {
   nidSelectEl = document.getElementById('nidSelect');
   userInfoEl = document.getElementById('userInfo');
   userRoleEl = document.getElementById('userRole');
+  alertLogListEl = document.getElementById('alertLogList');
+  alertLogEmptyEl = document.getElementById('alertLogEmpty');
   logoutBtnEl = document.getElementById('logoutBtn');
 
   if (nidSelectEl) {
@@ -196,6 +200,56 @@ function createSeries() {
   };
 }
 
+function getMetricLabel(metric) {
+  if (metric === 'temperature') return 'Température';
+  if (metric === 'humidite') return 'Humidité';
+  if (metric === 'vibration') return 'Vibration';
+  if (metric === 'tension') return 'Tension';
+  return metric;
+}
+
+function appendAlertLog(message, metric) {
+  if (!alertLogListEl) return;
+
+  if (alertLogEmptyEl) {
+    alertLogEmptyEl.style.display = 'none';
+  }
+
+  const item = document.createElement('li');
+  item.className = `alert-log-item alert-log-critical alert-log-${metric}`;
+
+  const time = document.createElement('div');
+  time.className = 'alert-log-time';
+  time.textContent = new Date().toLocaleTimeString();
+
+  const text = document.createElement('div');
+  text.className = 'alert-log-message';
+  text.textContent = message;
+
+  item.appendChild(time);
+  item.appendChild(text);
+  alertLogListEl.prepend(item);
+
+  while (alertLogListEl.children.length > 80) {
+    alertLogListEl.removeChild(alertLogListEl.lastElementChild);
+  }
+}
+
+function logAlertTransition(state, metric, isAlertNow, value) {
+  const previous = Boolean(state.alertStatus[metric]);
+  if (previous === isAlertNow || !Number.isFinite(value)) return;
+
+  if (!isAlertNow) {
+    state.alertStatus[metric] = false;
+    return;
+  }
+
+  const limits = ALERT_LIMITS[metric];
+  const direction = value < limits.min ? 'trop basse' : 'trop élevée';
+  appendAlertLog(`${getMetricLabel(metric)} ${direction} chez le Nid ${state.nid} (${value.toFixed(2)})`, metric);
+  state.alertStatus[metric] = true;
+}
+
 function createNidState(nid) {
   const container = document.getElementById('nidsContainer');
   if (!container) return null;
@@ -238,6 +292,12 @@ function createNidState(nid) {
     nid,
     safeNid,
     lastMetrics: null,
+    alertStatus: {
+      temperature: false,
+      humidite: false,
+      vibration: false,
+      tension: false
+    },
     series: {
       temperature: createSeries(),
       humidite: createSeries(),
@@ -302,33 +362,43 @@ function pushPoint(series, value, timeLabel) {
 
 function updateAlerts(state, metrics) {
   const safeNid = state.safeNid;
+  let isTempAlert = false;
+  let isHumAlert = false;
+  let isVibAlert = false;
+  let isTensionAlert = false;
+
   const tempAlert = document.getElementById(`tempAlert_${safeNid}`);
+  isTempAlert = Number.isFinite(metrics.temperature)
+    && (metrics.temperature < ALERT_LIMITS.temperature.min || metrics.temperature > ALERT_LIMITS.temperature.max);
   if (tempAlert) {
-    const isAlert = Number.isFinite(metrics.temperature)
-      && (metrics.temperature < ALERT_LIMITS.temperature.min || metrics.temperature > ALERT_LIMITS.temperature.max);
-    tempAlert.style.display = isAlert ? 'block' : 'none';
+    tempAlert.style.display = isTempAlert ? 'block' : 'none';
   }
 
   const humAlert = document.getElementById(`humAlert_${safeNid}`);
+  isHumAlert = Number.isFinite(metrics.humidite)
+    && (metrics.humidite < ALERT_LIMITS.humidite.min || metrics.humidite > ALERT_LIMITS.humidite.max);
   if (humAlert) {
-    const isAlert = Number.isFinite(metrics.humidite)
-      && (metrics.humidite < ALERT_LIMITS.humidite.min || metrics.humidite > ALERT_LIMITS.humidite.max);
-    humAlert.style.display = isAlert ? 'block' : 'none';
+    humAlert.style.display = isHumAlert ? 'block' : 'none';
   }
 
   const vibAlert = document.getElementById(`vibAlert_${safeNid}`);
+  isVibAlert = Number.isFinite(metrics.vibration)
+    && (metrics.vibration < ALERT_LIMITS.vibration.min || metrics.vibration > ALERT_LIMITS.vibration.max);
   if (vibAlert) {
-    const isAlert = Number.isFinite(metrics.vibration)
-      && (metrics.vibration < ALERT_LIMITS.vibration.min || metrics.vibration > ALERT_LIMITS.vibration.max);
-    vibAlert.style.display = isAlert ? 'block' : 'none';
+    vibAlert.style.display = isVibAlert ? 'block' : 'none';
   }
 
   const tensionAlert = document.getElementById(`tensionAlert_${safeNid}`);
+  isTensionAlert = Number.isFinite(metrics.tension)
+    && (metrics.tension < ALERT_LIMITS.tension.min || metrics.tension > ALERT_LIMITS.tension.max);
   if (tensionAlert) {
-    const isAlert = Number.isFinite(metrics.tension)
-      && (metrics.tension < ALERT_LIMITS.tension.min || metrics.tension > ALERT_LIMITS.tension.max);
-    tensionAlert.style.display = isAlert ? 'block' : 'none';
+    tensionAlert.style.display = isTensionAlert ? 'block' : 'none';
   }
+
+  logAlertTransition(state, 'temperature', isTempAlert, metrics.temperature);
+  logAlertTransition(state, 'humidite', isHumAlert, metrics.humidite);
+  logAlertTransition(state, 'vibration', isVibAlert, metrics.vibration);
+  logAlertTransition(state, 'tension', isTensionAlert, metrics.tension);
 }
 
 function updateNidCharts(state, metrics, timeLabel) {
