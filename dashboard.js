@@ -364,6 +364,36 @@ function pickNumber(...values) {
   return NaN;
 }
 
+function normalizeKey(key) {
+  return String(key || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function pickMetricFromObject(source, aliases) {
+  if (!source || typeof source !== 'object') return NaN;
+
+  const wanted = new Set(aliases.map(normalizeKey));
+  const directValues = [];
+  const normalizedValues = [];
+
+  for (const alias of aliases) {
+    if (Object.prototype.hasOwnProperty.call(source, alias)) {
+      directValues.push(source[alias]);
+    }
+  }
+
+  for (const [key, value] of Object.entries(source)) {
+    if (wanted.has(normalizeKey(key))) {
+      normalizedValues.push(value);
+    }
+  }
+
+  return pickNumber(...directValues, ...normalizedValues);
+}
+
 function updateSummaryCards(metrics, flags) {
   if (!selectedNid) return;
   if (tempEl && flags.hasTemperature) tempEl.textContent = `${metrics.temperature.toFixed(2)} °C`;
@@ -386,10 +416,10 @@ function updateCharts(payload, topic) {
   if (!state) return;
 
   const metrics = {
-    temperature: pickNumber(normalized.temperature, normalized.temp),
-    humidite: pickNumber(normalized.humidite, normalized.humidity, normalized.hum, normalized.moisture),
-    vibration: pickNumber(normalized.vibration, normalized.vibrations, normalized.vib),
-    tension: pickNumber(normalized.tension, normalized.voltage, normalized.sound)
+    temperature: pickMetricFromObject(normalized, ['temperature', 'temp']),
+    humidite: pickMetricFromObject(normalized, ['humidite', 'humidity', 'hum', 'moisture', 'humidité']),
+    vibration: pickMetricFromObject(normalized, ['vibration', 'vibrations', 'vib', 'acceleration', 'accelerometer']),
+    tension: pickMetricFromObject(normalized, ['tension', 'voltage', 'sound', 'volt'])
   };
 
   const time = new Date().toLocaleTimeString();
