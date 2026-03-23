@@ -266,6 +266,33 @@ p {
   gap: 16px;
 }
 
+.grafana-wrap {
+  margin-top: 16px;
+}
+
+.grafana-card h2 {
+  margin-bottom: 8px;
+}
+
+.grafana-hint {
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+
+.grafana-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.grafana-panel {
+  width: 100%;
+  min-height: 260px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(6, 19, 28, 0.6);
+}
+
 .login-page {
   min-height: calc(100vh - 180px);
   display: grid;
@@ -486,6 +513,7 @@ button {
 
   .dashboard-grid,
   .charts,
+  .grafana-grid,
   .nid-charts,
   .hero-images {
     grid-template-columns: 1fr;
