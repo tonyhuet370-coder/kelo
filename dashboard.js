@@ -96,7 +96,12 @@ function initDomRefs() {
   logoutBtnEl = document.getElementById('logoutBtn');
 
   if (grafanaLinkEl) {
-    grafanaLinkEl.href = `${window.location.protocol}//${window.location.hostname}:3000`;
+    const grafanaUrl = `${window.location.protocol}//${window.location.hostname}:3000`;
+    grafanaLinkEl.href = grafanaUrl;
+    grafanaLinkEl.addEventListener('click', (event) => {
+      event.preventDefault();
+      window.open(grafanaUrl, '_blank', 'noopener,noreferrer');
+    });
   }
 
   if (nidSelectEl) {
