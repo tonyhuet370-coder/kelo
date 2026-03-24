@@ -23,6 +23,7 @@ let nidSelectEl = null;
 let logoutBtnEl = null;
 let userInfoEl = null;
 let userRoleEl = null;
+let grafanaLinkEl = null;
 let alertLogListEl = null;
 let alertLogEmptyEl = null;
 let mqttClient = null;
@@ -89,9 +90,14 @@ function initDomRefs() {
   nidSelectEl = document.getElementById('nidSelect');
   userInfoEl = document.getElementById('userInfo');
   userRoleEl = document.getElementById('userRole');
+  grafanaLinkEl = document.getElementById('grafanaLink');
   alertLogListEl = document.getElementById('alertLogList');
   alertLogEmptyEl = document.getElementById('alertLogEmpty');
   logoutBtnEl = document.getElementById('logoutBtn');
+
+  if (grafanaLinkEl) {
+    grafanaLinkEl.href = `${window.location.protocol}//${window.location.hostname}:3000`;
+  }
 
   if (nidSelectEl) {
     nidSelectEl.addEventListener('change', () => {
