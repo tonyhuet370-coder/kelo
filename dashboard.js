@@ -96,12 +96,7 @@ function initDomRefs() {
   logoutBtnEl = document.getElementById('logoutBtn');
 
   if (grafanaLinkEl) {
-    const grafanaUrl = `${window.location.protocol}//${window.location.hostname}:3000`;
-    grafanaLinkEl.href = grafanaUrl;
-    grafanaLinkEl.addEventListener('click', (event) => {
-      event.preventDefault();
-      window.open(grafanaUrl, '_blank', 'noopener,noreferrer');
-    });
+    grafanaLinkEl.href = '/grafana/';
   }
 
   if (nidSelectEl) {
