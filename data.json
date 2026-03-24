@@ -1,0 +1,10 @@
+{
+  "nid": "A12",
+  "data": {
+    "temperature": 0.0,
+    "humidite": 0.0,
+    "vibration": 0.0,
+    "tension": 0.0,
+    "horodatage": ""
+  }
+}
