@@ -10,8 +10,8 @@ datasources:
     editable: true
     jsonData:
       version: Flux
-      organization: ${INFLUXDB_ORG}
-      defaultBucket: ${INFLUXDB_BUCKET}
+      organization: kelonia
+      defaultBucket: kelonia
       tlsSkipVerify: true
     secureJsonData:
-      token: ${INFLUXDB_TOKEN}
+      token: kelonia-super-token
