@@ -72,15 +72,15 @@
       const password = document.getElementById('password').value;
 
       const user = USERS[username];
-    if (user && password === user.password) {
-      localStorage.setItem(AUTH_KEY, '1');
-      localStorage.setItem(USER_KEY, username);
-      localStorage.setItem(ROLE_KEY, user.role);
-      window.location.href = 'dashboard.html';
-      return;
-    }
+      if (user && password === user.password) {
+        localStorage.setItem(AUTH_KEY, '1');
+        localStorage.setItem(USER_KEY, username);
+        localStorage.setItem(ROLE_KEY, user.role);
+        window.location.href = 'dashboard.html';
+        return;
+      }
 
-    errorEl.textContent = 'Identifiants incorrects.';
+      errorEl.textContent = 'Identifiants incorrects.';
     });
   </script>
 </body>

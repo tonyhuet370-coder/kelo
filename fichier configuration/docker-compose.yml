@@ -5,7 +5,7 @@ services:
     ports:
       - "${WEB_PORT:-8080}:80"  # Port personnalisable (défaut 8080 pour Synology)
     volumes:
-      - ./:/usr/share/nginx/html:ro
+      - "../site html:/usr/share/nginx/html:ro"
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - kelo-network
@@ -20,9 +20,9 @@ services:
       - "1883:1883"
       - "9001:9001"
     volumes:
-      - ./mosquitto/config:/mosquitto/config:ro
-      - ./mosquitto/data:/mosquitto/data
-      - ./mosquitto/log:/mosquitto/log
+      - ../Test/mosquitto/config:/mosquitto/config:ro
+      - ../Test/mosquitto/data:/mosquitto/data
+      - ../Test/mosquitto/log:/mosquitto/log
     networks:
       - kelo-network
     restart: unless-stopped
@@ -30,7 +30,7 @@ services:
  
   collector:
     build:
-      context: ./collector
+      context: ../collector
       dockerfile: Dockerfile
     ports:
       - "8081:8081"
