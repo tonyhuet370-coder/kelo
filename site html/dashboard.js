@@ -15,6 +15,57 @@ const ALERT_LIMITS = {
 const USER_KEY = 'keloniaUser';
 const ROLE_KEY = 'keloniaRole';
 
+function storageGet(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch (err) {
+    // localStorage may be blocked by browser privacy settings.
+  }
+
+  try {
+    return sessionStorage.getItem(key);
+  } catch (err) {
+    // sessionStorage may also be blocked in strict modes.
+  }
+
+  const cookieMatch = document.cookie.match(new RegExp(`(?:^|; )${key}=([^;]*)`));
+  return cookieMatch ? decodeURIComponent(cookieMatch[1]) : null;
+}
+
+function storageSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return;
+  } catch (err) {
+    // Ignore and fallback.
+  }
+
+  try {
+    sessionStorage.setItem(key, value);
+    return;
+  } catch (err) {
+    // Ignore and fallback.
+  }
+
+  document.cookie = `${key}=${encodeURIComponent(value)}; path=/; SameSite=Lax`;
+}
+
+function storageRemove(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (err) {
+    // Ignore and continue cleanup.
+  }
+
+  try {
+    sessionStorage.removeItem(key);
+  } catch (err) {
+    // Ignore and continue cleanup.
+  }
+
+  document.cookie = `${key}=; Max-Age=0; path=/; SameSite=Lax`;
+}
+
 let tempEl = null;
 let humEl = null;
 let vibEl = null;
@@ -109,9 +160,9 @@ function initDomRefs() {
 
   if (logoutBtnEl) {
     logoutBtnEl.addEventListener('click', () => {
-      localStorage.removeItem(AUTH_KEY);
-      localStorage.removeItem(USER_KEY);
-      localStorage.removeItem(ROLE_KEY);
+      storageRemove(AUTH_KEY);
+      storageRemove(USER_KEY);
+      storageRemove(ROLE_KEY);
       stopRealtimeUpdates();
       window.location.href = `${window.location.origin}/login.html`;
     });
@@ -119,17 +170,17 @@ function initDomRefs() {
 }
 
 function ensureAuthenticated() {
-  if (localStorage.getItem(AUTH_KEY) === '1') return true;
+  if (storageGet(AUTH_KEY) === '1') return true;
   window.location.href = `${window.location.origin}/login.html`;
   return false;
 }
 
 function getAuthenticatedUser() {
-  return localStorage.getItem(USER_KEY) || 'inconnu';
+  return storageGet(USER_KEY) || 'inconnu';
 }
 
 function getCurrentUserRole() {
-  return localStorage.getItem(ROLE_KEY) || 'viewer';
+  return storageGet(ROLE_KEY) || 'viewer';
 }
 
 function applyRoleAccessControl() {
