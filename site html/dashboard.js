@@ -113,14 +113,14 @@ function initDomRefs() {
       localStorage.removeItem(USER_KEY);
       localStorage.removeItem(ROLE_KEY);
       stopRealtimeUpdates();
-      window.location.href = 'login.html';
+      window.location.href = `${window.location.origin}/login.html`;
     });
   }
 }
 
 function ensureAuthenticated() {
   if (localStorage.getItem(AUTH_KEY) === '1') return true;
-  window.location.href = 'login.html';
+  window.location.href = `${window.location.origin}/login.html`;
   return false;
 }
 

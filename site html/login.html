@@ -59,8 +59,10 @@
       gardien: { password: 'tortue', role: 'operator' }
     };
 
+    const DASHBOARD_URL = `${window.location.origin}/dashboard.html`;
+
     if (localStorage.getItem(AUTH_KEY) === '1') {
-      window.location.href = 'dashboard.html';
+      window.location.href = DASHBOARD_URL;
     }
 
     const form = document.getElementById('loginForm');
@@ -76,7 +78,7 @@
         localStorage.setItem(AUTH_KEY, '1');
         localStorage.setItem(USER_KEY, username);
         localStorage.setItem(ROLE_KEY, user.role);
-        window.location.href = 'dashboard.html';
+        window.location.href = DASHBOARD_URL;
         return;
       }
 
