@@ -1,8 +1,8 @@
 const MQTT_WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const DEFAULT_MQTT_WS_URL = `${MQTT_WS_PROTOCOL}//${window.location.hostname}:9001`;
 const DEFAULT_MQTT_TOPIC = 'kelo/nid/+/telemetry';
-const MQTT_WS_URL = localStorage.getItem('mqttWsUrl') || DEFAULT_MQTT_WS_URL;
-const MQTT_TOPIC = localStorage.getItem('mqttTopic') || DEFAULT_MQTT_TOPIC;
+const MQTT_WS_URL = (() => { try { return localStorage.getItem('mqttWsUrl'); } catch (e) { return null; } })() || DEFAULT_MQTT_WS_URL;
+const MQTT_TOPIC = (() => { try { return localStorage.getItem('mqttTopic'); } catch (e) { return null; } })() || DEFAULT_MQTT_TOPIC;
 const MAX_POINTS = 12;
 const AUTH_KEY = 'keloniaAuth';
 const ALERT_LIMITS = {
