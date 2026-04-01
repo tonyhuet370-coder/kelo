@@ -40,8 +40,8 @@ services:
       - mosquitto
     restart: unless-stopped
     environment:
-      - MQTT_BROKER=mosquitto
-      - MQTT_PORT=1883
+      - MQTT_BROKER=${MQTT_BROKER:-mosquitto}
+      - MQTT_PORT=${MQTT_PORT:-1883}
 
   influxdb:
     image: influxdb:2.7
@@ -70,6 +70,8 @@ services:
       - influxdb
     restart: unless-stopped
     environment:
+      - MQTT_BROKER=${MQTT_BROKER:-mosquitto}
+      - MQTT_PORT=${MQTT_PORT:-1883}
       - INFLUXDB_ORG=${INFLUXDB_ORG:-kelonia}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-kelonia}
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-kelonia-super-token}
