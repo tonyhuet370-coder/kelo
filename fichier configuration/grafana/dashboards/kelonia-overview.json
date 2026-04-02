@@ -99,10 +99,10 @@
         "name": "nid",
         "label": "Nid",
         "type": "custom",
-        "query": "A12,B07,C03,D11",
+        "query": "kelonia",
         "current": {
-          "text": "A12",
-          "value": "A12"
+          "text": "kelonia",
+          "value": "kelonia"
         },
         "multi": false,
         "includeAll": false
