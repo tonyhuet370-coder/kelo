@@ -1,8 +1,12 @@
 const MQTT_WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const DEFAULT_MQTT_WS_URL = `${MQTT_WS_PROTOCOL}//${window.location.hostname}:9001`;
-const DEFAULT_MQTT_TOPIC = 'kelo/nid/+/telemetry';
+const DEFAULT_MQTT_TOPICS = ['kelo/nid/+/telemetry', 'kelonia'];
 const MQTT_WS_URL = (() => { try { return localStorage.getItem('mqttWsUrl'); } catch (e) { return null; } })() || DEFAULT_MQTT_WS_URL;
-const MQTT_TOPIC = (() => { try { return localStorage.getItem('mqttTopic'); } catch (e) { return null; } })() || DEFAULT_MQTT_TOPIC;
+const MQTT_TOPICS = (() => {
+  const saved = (() => { try { return localStorage.getItem('mqttTopic'); } catch (e) { return null; } })();
+  if (!saved) return DEFAULT_MQTT_TOPICS;
+  return String(saved).split(',').map((s) => s.trim()).filter(Boolean);
+})();
 const MAX_POINTS = 12;
 const AUTH_KEY = 'keloniaAuth';
 const ALERT_LIMITS = {
@@ -558,7 +562,7 @@ function stopRealtimeUpdates() {
   mqttClient = null;
 }
 
-function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
+function startMqtt(wsUrl = MQTT_WS_URL, topics = MQTT_TOPICS) {
   if (!window.mqtt) return;
 
   if (mqttClient) {
@@ -571,7 +575,7 @@ function startMqtt(wsUrl = MQTT_WS_URL, topic = MQTT_TOPIC) {
   });
 
   mqttClient.on('connect', () => {
-    mqttClient.subscribe(topic);
+    mqttClient.subscribe(topics);
   });
 
   mqttClient.on('message', (receivedTopic, message) => {
