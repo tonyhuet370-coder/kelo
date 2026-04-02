@@ -1,6 +1,6 @@
 const MQTT_WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const DEFAULT_MQTT_WS_URL = `${MQTT_WS_PROTOCOL}//${window.location.hostname}:9001`;
-const DEFAULT_MQTT_TOPICS = ['kelo/nid/+/telemetry', 'kelonia'];
+const DEFAULT_MQTT_TOPICS = ['kelo/nid/+/telemetry', 'kelonia/#'];
 const MQTT_WS_URL = (() => { try { return localStorage.getItem('mqttWsUrl'); } catch (e) { return null; } })() || DEFAULT_MQTT_WS_URL;
 const MQTT_TOPICS = (() => {
   const saved = (() => { try { return localStorage.getItem('mqttTopic'); } catch (e) { return null; } })();
@@ -251,6 +251,10 @@ function extractNid(topic, payload) {
   if (parts.length >= 3 && parts[0] === 'kelo' && parts[1] === 'nid') {
     return parts[2];
   }
+
+  // Pour les topics kelonia/SHT41, kelonia/MPU6050, kelonia/vibration :
+  // tous les capteurs appartiennent au même nid – utiliser le premier segment du topic
+  if (parts.length >= 1) return parts[0];
 
   return 'inconnu';
 }
@@ -602,7 +606,7 @@ function startCollectorEvents() {
     }
 
     try {
-      updateCharts(payload, 'collector/events');
+      updateCharts(payload, payload.topic || 'collector/events');
     } catch (err) {
       console.error('Collector chart update error', err);
     }

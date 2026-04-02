@@ -57,6 +57,7 @@ def on_message(client, userdata, msg):
    
     nid = data.get('nid', 'unknown')
     latest['nid'] = nid
+    latest['topic'] = msg.topic
     latest['data'] = data
 
     # On diffuse immédiatement la nouvelle valeur à tous les clients SSE connectés.
