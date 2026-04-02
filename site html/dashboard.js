@@ -82,6 +82,7 @@ let grafanaLinkEl = null;
 let alertLogListEl = null;
 let alertLogEmptyEl = null;
 let mqttClient = null;
+let collectorEventsSource = null;
 let lastPayloadSignature = null;
 let selectedNid = null;
 
@@ -554,12 +555,62 @@ function updateCharts(payload, topic) {
 }
 
 function stopRealtimeUpdates() {
-  if (!mqttClient) return;
+  if (mqttClient) {
+    try {
+      mqttClient.end(true);
+    } catch (_err) {
+    }
+    mqttClient = null;
+  }
+
+  if (collectorEventsSource) {
+    try {
+      collectorEventsSource.close();
+    } catch (_err) {
+    }
+    collectorEventsSource = null;
+  }
+}
+
+async function loadCollectorLatest() {
   try {
-    mqttClient.end(true);
+    const res = await fetch('/collector/latest', { cache: 'no-store' });
+    if (!res.ok) return;
+    const payload = await res.json();
+    updateCharts(payload, 'collector/latest');
   } catch (_err) {
   }
-  mqttClient = null;
+}
+
+function startCollectorEvents() {
+  if (typeof EventSource === 'undefined') return;
+
+  if (collectorEventsSource) {
+    try {
+      collectorEventsSource.close();
+    } catch (_err) {
+    }
+  }
+
+  collectorEventsSource = new EventSource('/collector/events');
+  collectorEventsSource.onmessage = (event) => {
+    let payload;
+    try {
+      payload = JSON.parse(event.data);
+    } catch (_err) {
+      return;
+    }
+
+    try {
+      updateCharts(payload, 'collector/events');
+    } catch (err) {
+      console.error('Collector chart update error', err);
+    }
+  };
+
+  collectorEventsSource.onerror = () => {
+    // EventSource reconnects automatically.
+  };
 }
 
 function startMqtt(wsUrl = MQTT_WS_URL, topics = MQTT_TOPICS) {
@@ -610,6 +661,8 @@ function initDashboard() {
   updateUserHeader();
   applyRoleAccessControl();
   startMqtt();
+  loadCollectorLatest();
+  startCollectorEvents();
 }
 
 if (document.readyState === 'loading') {
