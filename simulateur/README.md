@@ -78,7 +78,7 @@ Vérification de santé du service
 
 - **Température** : 20.0 - 30.0 °C
 - **Humidité** : 70 - 90 %
-- **Vibration** : 3.5 - 4.2 m/s²
+- **Vibration** : 3.5 - 4.2 Mpu
 - **Tension** : 0.0 - 4.2 V
 
 ## CORS

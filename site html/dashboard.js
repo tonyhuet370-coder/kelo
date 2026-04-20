@@ -228,7 +228,7 @@ function updateSummaryCardsForSelected() {
   const metrics = state.lastMetrics;
   if (tempEl && Number.isFinite(metrics.temperature)) tempEl.textContent = `${metrics.temperature.toFixed(2)} °C`;
   if (humEl && Number.isFinite(metrics.humidite)) humEl.textContent = `${metrics.humidite.toFixed(2)} %`;
-  if (vibEl && Number.isFinite(metrics.vibration)) vibEl.textContent = `${metrics.vibration.toFixed(2)} m/s²`;
+  if (vibEl && Number.isFinite(metrics.vibration)) vibEl.textContent = `${metrics.vibration.toFixed(2)} Mpu`;
   if (soundEl && Number.isFinite(metrics.tension)) soundEl.textContent = `${metrics.tension.toFixed(2)} V`;
 }
 
@@ -341,7 +341,7 @@ function createNidState(nid) {
       </div>
       <div class="chart-container">
         <h3>Vibrations</h3>
-        <div class="alert" id="vibAlert_${safeNid}" style="display: none;">⚠️ Vibrations élevées dans le nid : le seuil critique. Les vibrations excessives peuvent déranger et endommager les œufs. Les niveaux doivent rester entre 3,0 et 4,5 m/s²</div>
+        <div class="alert" id="vibAlert_${safeNid}" style="display: none;">⚠️ Vibrations élevées dans le nid : le seuil critique. Les vibrations excessives peuvent déranger et endommager les œufs. Les niveaux doivent rester entre 3,0 et 4,5 Mpu</div>
         <canvas id="vibrationChart_${safeNid}"></canvas>
       </div>
       <div class="chart-container">
