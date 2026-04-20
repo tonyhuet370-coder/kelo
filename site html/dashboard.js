@@ -387,7 +387,7 @@ function createNidState(nid) {
       ),
       vibration: createLineChart(
         `vibrationChart_${safeNid}`,
-        `Vibrations (m/s²) · Nid ${nid}`,
+        `Vibrations (Mpu) · Nid ${nid}`,
         'rgba(255, 206, 86, 1)',
         [],
         []
@@ -522,7 +522,7 @@ function updateSummaryCards(metrics, flags) {
   if (!selectedNid) return;
   if (tempEl && flags.hasTemperature) tempEl.textContent = `${metrics.temperature.toFixed(2)} °C`;
   if (humEl && flags.hasHumidite) humEl.textContent = `${metrics.humidite.toFixed(2)} %`;
-  if (vibEl && flags.hasVibration) vibEl.textContent = `${metrics.vibration.toFixed(2)} m/s²`;
+  if (vibEl && flags.hasVibration) vibEl.textContent = `${metrics.vibration.toFixed(2)} Mpu`;
   if (soundEl && flags.hasTension) soundEl.textContent = `${metrics.tension.toFixed(2)} V`;
 }
 
