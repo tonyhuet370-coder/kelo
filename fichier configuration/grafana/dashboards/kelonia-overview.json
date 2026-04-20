@@ -51,12 +51,13 @@
     {
       "id": 3,
       "type": "timeseries",
-      "title": "Vibration (m/s2)",
+      "title": "Vibration (Mpu)",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "datasource": { "type": "influxdb", "uid": "influxdb-kelonia" },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "fixed", "fixedColor": "yellow" }
+          "color": { "mode": "fixed", "fixedColor": "yellow" },
+          "unit": "short"
         },
         "overrides": []
       },
