@@ -1,11 +1,11 @@
 {
   "id": null,
-  "uid": "kelonia-overview",
+  "uid": "kelonia-overview-mpu",
   "title": "kelonia",
   "tags": ["kelonia", "mqtt", "telemetry"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "refresh": "5s",
   "panels": [
     {
