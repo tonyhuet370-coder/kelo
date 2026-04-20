@@ -532,7 +532,8 @@ function updateCharts(payload, topic) {
   const normalized = payload.data ?? payload;
   if (!normalized || typeof normalized !== 'object') return;
 
-  const nid = extractNid(topic, normalized);
+  // Keep top-level metadata (e.g. collector envelope nid) for nid resolution.
+  const nid = extractNid(topic, payload);
   const state = getNidState(nid);
   if (!state) return;
 
@@ -581,7 +582,7 @@ async function loadCollectorLatest() {
     const res = await fetch('/collector/latest', { cache: 'no-store' });
     if (!res.ok) return;
     const payload = await res.json();
-    updateCharts(payload, 'collector/latest');
+    updateCharts(payload, payload.topic || 'collector/latest');
   } catch (_err) {
   }
 }
