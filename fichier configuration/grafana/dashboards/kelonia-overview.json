@@ -1,6 +1,5 @@
 {
   "id": null,
-  "uid": "kelonia-overview-mpu",
   "title": "kelonia",
   "tags": ["kelonia", "mqtt", "telemetry"],
   "timezone": "browser",
