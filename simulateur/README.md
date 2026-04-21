@@ -73,6 +73,28 @@ Vérification de santé du service
 - `FLASK_ENV` : `production` ou `development` (défaut: production)
 - `SIMULATEUR_PORT` : Port d'écoute (défaut: 5000)
 - `SIMULATEUR_HOST` : Adresse d'écoute (défaut: 0.0.0.0)
+- `MQTT_BROKER` : Hôte du broker MQTT (défaut Docker: `host.docker.internal`)
+- `MQTT_PORT` : Port du broker MQTT (défaut: 1883)
+- `MQTT_TOPIC_TEMPLATE` : Topic de publication (défaut: `kelo/nid/{nid}/telemetry`)
+- `SIMULATED_NID` : Identifiant du nid simulé (un seul nid)
+- `PUBLISH_INTERVAL` : Intervalle de publication en secondes
+
+## Test rapide avec le broker MQTT du projet
+
+Depuis le dossier `simulateur`, lancer:
+
+```bash
+docker-compose up -d
+```
+
+Si votre broker tourne dans la stack principale Docker Compose, vous pouvez forcer l'hôte MQTT:
+
+```bash
+$env:MQTT_BROKER="mosquitto"   # PowerShell
+# ou
+set MQTT_BROKER=mosquitto       # CMD
+docker-compose up -d
+```
 
 ## Plages de données simulées
 

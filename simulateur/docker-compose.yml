@@ -15,6 +15,13 @@ services:
       - FLASK_ENV=${FLASK_ENV:-production}
       - SIMULATEUR_PORT=5000
       - SIMULATEUR_HOST=0.0.0.0
+      - MQTT_BROKER=${MQTT_BROKER:-host.docker.internal}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_TOPIC_TEMPLATE=${MQTT_TOPIC_TEMPLATE:-kelo/nid/{nid}/telemetry}
+      - SIMULATED_NID=${SIMULATED_NID:-A12}
+      - PUBLISH_INTERVAL=${PUBLISH_INTERVAL:-5}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Logs
     logging:
       driver: "json-file"
