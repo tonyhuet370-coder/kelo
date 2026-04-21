@@ -66,7 +66,15 @@ Modifier (optionnel, les défauts conviennent):
 ```
 WEB_PORT=8080         # Port du site
 SIMULATEUR_PORT=5000  # Port interne du simulateur
+MQTT_BROKER=172.19.216.4
+MQTT_PORT=1883
+MQTT_TOPIC=kelo/#
+INFLUXDB_ORG=kelonia
+INFLUXDB_BUCKET=kelonia
+INFLUXDB_TOKEN=kelonia-super-token
 ```
+
+Important: si Grafana tourne sur le NAS, c'est cette configuration .env du NAS qui fait foi pour l'ingestion Telegraf.
 
 Les deux conteneurs se trouvent automatiquement via le réseau Docker !
 
