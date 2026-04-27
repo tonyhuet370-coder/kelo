@@ -4,7 +4,7 @@
   "tags": ["kelonia", "mqtt", "telemetry"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "refresh": "5s",
   "panels": [
     {
@@ -22,7 +22,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"temperature\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"temperature\" and r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]
@@ -42,7 +42,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"humidite\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"humidite\" and r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]
@@ -62,7 +62,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"vibration\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"vibration\" and r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]
@@ -82,7 +82,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"tension\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"tension\" and r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]
@@ -94,7 +94,24 @@
   },
   "timepicker": {},
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "nid",
+        "type": "query",
+        "datasource": "influxdb-kelonia",
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"kelonia\", tag: \"nid\")",
+        "refresh": 2,
+        "hide": 0,
+        "label": "Nid",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": ""
+        }
+      }
+    ]
   },
   "annotations": {
     "list": []
