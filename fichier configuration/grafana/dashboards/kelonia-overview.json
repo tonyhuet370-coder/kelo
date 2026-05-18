@@ -22,7 +22,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"temperature\" and r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"temperature\" and (\"${nid}\" == \"\" or r.nid == \"${nid}\")) |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]
@@ -42,7 +42,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"humidite\" and r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"humidite\" and (\"${nid}\" == \"\" or r.nid == \"${nid}\")) |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]
@@ -62,7 +62,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"vibration\" and r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"vibration\" and (\"${nid}\" == \"\" or r.nid == \"${nid}\")) |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]
@@ -82,7 +82,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"tension\" and r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\" and r._field == \"tension\" and (\"${nid}\" == \"\" or r.nid == \"${nid}\")) |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]
@@ -107,7 +107,7 @@
         "includeAll": false,
         "current": {
           "selected": false,
-          "text": "All",
+          "text": "Tous les nids",
           "value": ""
         }
       }
