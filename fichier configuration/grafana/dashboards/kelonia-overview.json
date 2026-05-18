@@ -4,7 +4,7 @@
   "tags": ["kelonia", "mqtt", "telemetry"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 5,
+  "version": 6,
   "refresh": "5s",
   "panels": [
     {
@@ -89,7 +89,7 @@
     }
   ],
   "time": {
-    "from": "now-30m",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
@@ -107,8 +107,8 @@
         "includeAll": false,
         "current": {
           "selected": false,
-          "text": "Tous les nids",
-          "value": ""
+          "text": "A12",
+          "value": "A12"
         }
       }
     ]
