@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import time
 from aiohttp import web
 import threading
 import paho.mqtt.client as mqtt
@@ -76,11 +77,26 @@ async def broadcast(data):
 
 def mqtt_thread():
     # Client MQTT exécuté dans un thread dédié pour ne pas bloquer aiohttp.
-    client = mqtt.Client()
-    client.on_connect = on_connect
-    client.on_message = on_message
-    client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    client.loop_forever()
+    while True:
+        client = mqtt.Client()
+        client.on_connect = on_connect
+        client.on_message = on_message
+
+        try:
+            client.connect(MQTT_BROKER, MQTT_PORT, 60)
+            client.loop_forever()
+        except Exception as err:
+            print(f"MQTT connection error to {MQTT_BROKER}:{MQTT_PORT}: {err}", flush=True)
+            time.sleep(5)
+        finally:
+            try:
+                client.loop_stop()
+            except Exception:
+                pass
+            try:
+                client.disconnect()
+            except Exception:
+                pass
 
 async def init_app():
     # Application web: 2 endpoints de lecture
