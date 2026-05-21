@@ -678,3 +678,10 @@ if (document.readyState === 'loading') {
 
 window.addEventListener('beforeunload', stopRealtimeUpdates);
 window.addEventListener('pagehide', stopRealtimeUpdates);
+
+function showVisualAlert(message) {
+  const alertBox = document.getElementById("alertBox");
+  alertBox.textContent = message;
+  alertBox.style.display = "block";
+  alertBox.classList.add("blink");
+}
