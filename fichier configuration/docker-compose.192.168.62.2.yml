@@ -1,0 +1,15 @@
+services:
+  collector:
+    networks:
+      - kelo-network
+      - mqtt-external
+
+  telegraf:
+    networks:
+      - kelo-network
+      - mqtt-external
+
+networks:
+  mqtt-external:
+    external: true
+    name: ${MQTT_EXTERNAL_NETWORK}
