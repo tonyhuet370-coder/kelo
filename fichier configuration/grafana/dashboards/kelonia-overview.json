@@ -4,7 +4,7 @@
   "tags": ["kelonia", "mqtt", "telemetry"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 7,
+  "version": 8,
   "refresh": "5s",
   "panels": [
     {
@@ -22,7 +22,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\") |> filter(fn: (r) => r._field == \"temperature\") |> filter(fn: (r) => if \"${nid}\" == \"\" then true else r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\") |> filter(fn: (r) => r._field == \"temperature\") |> group(columns: [\"nid\"]) |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]
@@ -42,7 +42,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\") |> filter(fn: (r) => r._field == \"humidite\") |> filter(fn: (r) => if \"${nid}\" == \"\" then true else r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\") |> filter(fn: (r) => r._field == \"humidite\") |> group(columns: [\"nid\"]) |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]
@@ -62,7 +62,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\") |> filter(fn: (r) => r._field == \"vibration\") |> filter(fn: (r) => if \"${nid}\" == \"\" then true else r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\") |> filter(fn: (r) => r._field == \"vibration\") |> group(columns: [\"nid\"]) |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]
@@ -82,7 +82,7 @@
       },
       "targets": [
         {
-          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\") |> filter(fn: (r) => r._field == \"tension\") |> filter(fn: (r) => if \"${nid}\" == \"\" then true else r.nid == \"${nid}\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"kelonia\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"telemetry\") |> filter(fn: (r) => r._field == \"tension\") |> group(columns: [\"nid\"]) |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ]

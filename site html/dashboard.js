@@ -83,6 +83,7 @@ let alertLogListEl = null;
 let alertLogEmptyEl = null;
 let mqttClient = null;
 let collectorEventsSource = null;
+let collectorPollHandle = null;
 let lastPayloadSignature = null;
 let selectedNid = null;
 
@@ -580,6 +581,11 @@ function stopRealtimeUpdates() {
     }
     collectorEventsSource = null;
   }
+
+  if (collectorPollHandle) {
+    window.clearInterval(collectorPollHandle);
+    collectorPollHandle = null;
+  }
 }
 
 async function loadCollectorLatest() {
@@ -673,6 +679,9 @@ function initDashboard() {
   startMqtt();
   loadCollectorLatest();
   startCollectorEvents();
+  if (!collectorPollHandle) {
+    collectorPollHandle = window.setInterval(loadCollectorLatest, 5000);
+  }
 }
 
 if (document.readyState === 'loading') {
