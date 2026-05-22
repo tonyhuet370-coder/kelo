@@ -685,3 +685,9 @@ function showVisualAlert(message) {
   alertBox.style.display = "block";
   alertBox.classList.add("blink");
 }
+
+fetch("https://192.168.62.3:5000/alert", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ type: "Température", value: 34 })
+});
