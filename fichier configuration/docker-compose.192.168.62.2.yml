@@ -1,15 +1,25 @@
 services:
-  collector:
+  simulateur:
+    build:
+      context: ../simulateur
+      dockerfile: Dockerfile
+    ports:
+      - "${SIMULATEUR_PORT:-5050}:5000"
     networks:
       - kelo-network
-      - mqtt-external
-
-  telegraf:
-    networks:
-      - kelo-network
-      - mqtt-external
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - SIMULATEUR_PORT=5000
+      - SIMULATEUR_HOST=0.0.0.0
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_TOPIC_TEMPLATE=${MQTT_TOPIC_TEMPLATE:-kelo/nid/{nid}/telemetry}
+      - SIMULATED_NID=${SIMULATED_NID:-A12}
+      - PUBLISH_INTERVAL=${PUBLISH_INTERVAL:-5}
 
 networks:
-  mqtt-external:
-    external: true
-    name: ${MQTT_EXTERNAL_NETWORK}
+  kelo-network:
+    name: kelo-622_kelo-network

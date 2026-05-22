@@ -41,10 +41,7 @@ MQTT_EXTERNAL_NETWORK="$(grep -E '^MQTT_EXTERNAL_NETWORK=' "$ENV_FILE" | tail -n
 
 cd "$COMPOSE_DIR"
 
-COMPOSE_FILES=(-f "$COMPOSE_DIR/docker-compose.yml")
-if [ -n "$MQTT_EXTERNAL_NETWORK" ]; then
-    COMPOSE_FILES+=(-f "$OVERRIDE_FILE")
-fi
+COMPOSE_FILES=(-f "$COMPOSE_DIR/docker-compose.yml" -f "$OVERRIDE_FILE")
 
 echo "Déploiement dédié au serveur $SERVER_IP"
 echo "Projet Docker Compose: $PROJECT_NAME"
@@ -52,6 +49,8 @@ echo "Fichier d'environnement : $ENV_FILE"
 echo "Broker MQTT cible      : $(grep -E '^MQTT_BROKER=' "$ENV_FILE" | tail -n 1 | cut -d '=' -f 2-)"
 if [ -n "$MQTT_EXTERNAL_NETWORK" ]; then
     echo "Réseau Docker broker   : $MQTT_EXTERNAL_NETWORK"
+else
+    echo "Mode                   : autonome local (simulateur + broker sur 192.168.62.2)"
 fi
 
 "${COMPOSE_CMD[@]}" \
@@ -73,6 +72,7 @@ echo "Accès dédiés :"
 echo "  Site web  : http://$SERVER_IP:$WEB_PORT/"
 echo "  Dashboard : http://$SERVER_IP:$WEB_PORT/dashboard.html"
 echo "  Grafana   : http://$SERVER_IP:$WEB_PORT/grafana/"
+echo "  Simulateur: http://$SERVER_IP:$(grep -E '^SIMULATEUR_PORT=' "$ENV_FILE" | tail -n 1 | cut -d '=' -f 2- | tr -d '[:space:]')/health"
 echo
 echo "Gestion de cette stack uniquement :"
 echo "  Logs      : cd '$COMPOSE_DIR' && ${COMPOSE_CMD[*]} --project-name '$PROJECT_NAME' --env-file '$ENV_FILE' ${COMPOSE_FILES[*]} logs -f"
