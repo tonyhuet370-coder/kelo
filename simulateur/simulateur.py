@@ -1,5 +1,6 @@
-from flask import Flask, jsonify, request
+from flask import Flask, request, jsonify
 from flask_cors import CORS
+from telegram import Bot
 import json
 import random
 import time
@@ -149,3 +150,32 @@ if __name__ == '__main__':
     logger.info(f"Mode DEBUG: {DEBUG}")
     logger.info(f"Nid simulé: {SIMULATED_NID}")
     app.run(host=HOST, port=PORT, debug=DEBUG)
+
+# Ton token Telegram
+TELEGRAM_TOKEN = "889031909:AAFDxsFy63KBEFWs3qw9qWlrU2XOB2wZmg"
+CHAT_ID = "6936368458"  # Ton ID Telegram (tu peux le récupérer via @userinfobot)
+
+bot = Bot(token=TELEGRAM_TOKEN)
+
+def send_telegram_alert(message):
+    bot.send_message(chat_id=CHAT_ID, text=message)
+
+
+def check_alerts(data):
+    if data["temperature"] > 32:
+        alert_msg = f"⚠️ Alerte température : {data['temperature']}°C"
+        send_telegram_alert(alert_msg)
+    if data["vibration"] > 5:
+        alert_msg = f"⚠️ Alerte vibration : {data['vibration']} Hz"
+        send_telegram_alert(alert_msg)
+
+app = Flask(__name__)
+bot = Bot(token="889031909:AAFDxsFy63KBEFWs3qw9qWlrU2XOB2wZmg")
+CHAT_ID = "6936368458"
+
+@app.route("/alert", methods=["POST"])
+def alert():
+    data = request.get_json()
+    message = f"🚨 Alerte : {data['type']} - Valeur : {data['value']}"
+    bot.send_message(chat_id=CHAT_ID, text=message)
+    return jsonify({"status": "sent"})
