@@ -242,6 +242,11 @@ function registerNidInSelect(nid) {
     option.textContent = `Nid ${nid}`;
     nidSelectEl.appendChild(option);
   }
+
+  if (!selectedNid) {
+    selectedNid = nid;
+    nidSelectEl.value = nid;
+  }
 }
 
 function extractNid(topic, payload) {
