@@ -1,6 +1,3 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from telegram import Bot
 import json
 import random
 import time
@@ -9,53 +6,62 @@ import logging
 from datetime import datetime
 import threading
 import paho.mqtt.client as mqtt
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from telegram import Bot
 
-
+# ============================
+# LOGGING
+# ============================
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
+# ============================
+# FLASK
+# ============================
 app = Flask(__name__)
-CORS(app)  
+CORS(app)
 
-
+# ============================
+# CONFIG
+# ============================
 PORT = int(os.getenv('SIMULATEUR_PORT', 5000))
 HOST = os.getenv('SIMULATEUR_HOST', '0.0.0.0')
 DEBUG = os.getenv('FLASK_ENV') == 'development'
+
 MQTT_BROKER = os.getenv('MQTT_BROKER', 'localhost')
 MQTT_PORT = int(os.getenv('MQTT_PORT', 1883))
-MQTT_TOPIC = os.getenv('MQTT_TOPIC', '')
 MQTT_TOPIC_TEMPLATE = os.getenv('MQTT_TOPIC_TEMPLATE', 'kelo/nid/{nid}/telemetry')
-SIMULATED_NID = os.getenv('SIMULATED_NID', 'A12').strip() or 'A12'
+SIMULATED_NID = os.getenv('SIMULATED_NID', 'A12')
 PUBLISH_INTERVAL = float(os.getenv('PUBLISH_INTERVAL', 5))
 
+# ============================
+# TELEGRAM BOT
+# ============================
+TELEGRAM_TOKEN = "889031909:AAFDxsFy63KBEFWs3qw9qWlrU2XOB2wZmg"
+CHAT_ID = "6936368458"
+
+bot = Bot(token=TELEGRAM_TOKEN)
+
+def send_telegram_alert(message):
+    """Envoie une alerte Telegram"""
+    try:
+        bot.send_message(chat_id=CHAT_ID, text=message)
+        logger.info(f" Alerte Telegram envoyée : {message}")
+    except Exception as e:
+        logger.error(f" Erreur Telegram : {e}")
+
+# ============================
+# MQTT
+# ============================
 mqtt_client = None
-latest_data = None
-latest_lock = threading.Lock()
 connected_event = threading.Event()
 
 def build_topic(nid):
-    if MQTT_TOPIC:
-        return MQTT_TOPIC.format(nid=nid) if '{nid}' in MQTT_TOPIC else MQTT_TOPIC
     return MQTT_TOPIC_TEMPLATE.format(nid=nid)
-
-def generate_data(nid):
-    """Génère les données du simulateur de capteurs"""
-    data = {
-        "nid": nid,
-        # Plages élargies pour tester visuellement les alertes sur tous les capteurs.
-        "temperature": round(random.uniform(20.0, 38.0), 2),
-        "humidite": round(random.uniform(55.0, 98.0), 2),
-        "vibration": round(random.uniform(2.6, 4.9), 2),
-        "tension": round(random.uniform(0.0, 4.9), 2),
-        "horodatage": datetime.utcnow().isoformat() + "Z"
-    }
-    with latest_lock:
-        global latest_data
-        latest_data = data
-    return data
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -64,118 +70,89 @@ def on_connect(client, userdata, flags, rc):
     else:
         logger.error(f" Connexion MQTT échouée (rc={rc})")
 
-def on_disconnect(client, userdata, rc):
-    connected_event.clear()
-    if rc != 0:
-        logger.error(" Déconnecté du broker MQTT")
-
 def connect_mqtt():
     client = mqtt.Client()
     client.on_connect = on_connect
-    client.on_disconnect = on_disconnect
+
     while True:
         try:
             connected_event.clear()
             client.connect(MQTT_BROKER, MQTT_PORT, 60)
             client.loop_start()
-            if not connected_event.wait(timeout=5):
-                raise RuntimeError("Connexion MQTT timeout")
-            return client
+            if connected_event.wait(timeout=5):
+                return client
+            raise RuntimeError("Timeout MQTT")
         except Exception as e:
-            logger.error(f" Connexion MQTT échouée: {e}")
+            logger.error(f" Erreur MQTT : {e}")
             time.sleep(5)
 
-def publish_loop():
-    global mqtt_client
-    while True:
-        nid = SIMULATED_NID
-        data = generate_data(nid)
-        topic = build_topic(nid)
-        try:
-            if mqtt_client is None:
-                mqtt_client = connect_mqtt()
-            result = mqtt_client.publish(topic, json.dumps(data))
-            if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                logger.info(f" MQTT publié sur {topic}")
-            else:
-                logger.error(f" Publication MQTT échouée (rc={result.rc})")
-                try:
-                    mqtt_client.loop_stop()
-                except Exception:
-                    pass
-                mqtt_client = None
-        except Exception as e:
-            logger.error(f" Publication MQTT échouée: {e}")
-            try:
-                if mqtt_client is not None:
-                    mqtt_client.loop_stop()
-            except Exception:
-                pass
-            mqtt_client = None
-        time.sleep(PUBLISH_INTERVAL)
+# ============================
+# GENERATION DES DONNÉES
+# ============================
+def generate_data(nid):
+    data = {
+        "nid": nid,
+        "temperature": round(random.uniform(20.0, 38.0), 2),
+        "humidite": round(random.uniform(55.0, 98.0), 2),
+        "vibration": round(random.uniform(2.6, 6.0), 2),
+        "tension": round(random.uniform(0.0, 4.9), 2),
+        "horodatage": datetime.utcnow().isoformat() + "Z"
+    }
+    check_alerts(data)
+    return data
 
-@app.route('/data', methods=['GET'])
-def send_data():
-    """Endpoint pour récupérer les données du simulateur"""
-    try:
-        nid = SIMULATED_NID
-        data = generate_data(nid)
-        logger.info(f"Données envoyées: Temp={data['temperature']}°C, Humid={data['humidite']}%")
-        return jsonify(data)
-    except Exception as e:
-        logger.error(f"Erreur lors de la génération des données: {e}")
-        return jsonify({"error": "Erreur lors de la génération des données"}), 500
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Endpoint de vérification de santé (healthcheck)"""
-    return jsonify({"status": "ok"}), 200
-
-@app.errorhandler(404)
-def not_found(error):
-    """Gestion des erreurs 404"""
-    return jsonify({"error": "Route non trouvée"}), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    """Gestion des erreurs 500"""
-    logger.error(f"Erreur interne: {error}")
-    return jsonify({"error": "Erreur interne du serveur"}), 500
-
-if __name__ == '__main__':
-    mqtt_client = connect_mqtt()
-    t = threading.Thread(target=publish_loop, daemon=True)
-    t.start()
-    logger.info(f" Démarrage du simulateur sur {HOST}:{PORT}")
-    logger.info(f"Mode DEBUG: {DEBUG}")
-    logger.info(f"Nid simulé: {SIMULATED_NID}")
-    app.run(host=HOST, port=PORT, debug=DEBUG)
-
-# Ton token Telegram
-TELEGRAM_TOKEN = "889031909:AAFDxsFy63KBEFWs3qw9qWlrU2XOB2wZmg"
-CHAT_ID = "6936368458"  # Ton ID Telegram (tu peux le récupérer via @userinfobot)
-
-bot = Bot(token=TELEGRAM_TOKEN)
-
-def send_telegram_alert(message):
-    bot.send_message(chat_id=CHAT_ID, text=message)
-
-
+# ============================
+# ALERTES
+# ============================
 def check_alerts(data):
     if data["temperature"] > 32:
-        alert_msg = f"⚠️ Alerte température : {data['temperature']}°C"
-        send_telegram_alert(alert_msg)
+        send_telegram_alert(f"🔥 Température élevée : {data['temperature']}°C")
+
     if data["vibration"] > 5:
-        alert_msg = f"⚠️ Alerte vibration : {data['vibration']} Hz"
-        send_telegram_alert(alert_msg)
+        send_telegram_alert(f"⚠️ Vibration anormale : {data['vibration']} Hz")
 
-app = Flask(__name__)
-bot = Bot(token="889031909:AAFDxsFy63KBEFWs3qw9qWlrU2XOB2wZmg")
-CHAT_ID = "6936368458"
+    if data["tension"] < 1:
+        send_telegram_alert(f"🔋 Tension faible : {data['tension']}V")
 
-@app.route("/alert", methods=["POST"])
+# ============================
+# THREAD DE PUBLICATION MQTT
+# ============================
+def publish_loop():
+    global mqtt_client
+    mqtt_client = connect_mqtt()
+
+    while True:
+        data = generate_data(SIMULATED_NID)
+        topic = build_topic(SIMULATED_NID)
+
+        try:
+            mqtt_client.publish(topic, json.dumps(data))
+            logger.info(f" MQTT publié sur {topic}")
+        except Exception as e:
+            logger.error(f" Erreur MQTT : {e}")
+            mqtt_client = connect_mqtt()
+
+        time.sleep(PUBLISH_INTERVAL)
+
+# ============================
+# ROUTES FLASK
+# ============================
+@app.route('/data', methods=['GET'])
+def send_data():
+    data = generate_data(SIMULATED_NID)
+    return jsonify(data)
+
+@app.route('/alert', methods=['POST'])
 def alert():
     data = request.get_json()
     message = f"🚨 Alerte : {data['type']} - Valeur : {data['value']}"
-    bot.send_message(chat_id=CHAT_ID, text=message)
+    send_telegram_alert(message)
     return jsonify({"status": "sent"})
+
+# ============================
+# MAIN
+# ============================
+if __name__ == '__main__':
+    threading.Thread(target=publish_loop, daemon=True).start()
+    logger.info(f" Simulateur démarré sur {HOST}:{PORT}")
+    app.run(host=HOST, port=PORT, debug=DEBUG)
