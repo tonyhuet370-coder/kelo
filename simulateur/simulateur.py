@@ -8,7 +8,10 @@ import threading
 import paho.mqtt.client as mqtt
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from telegram import Bot
+try:
+    from telegram import Bot
+except ImportError:
+    Bot = None
 
 # ============================
 # LOGGING
@@ -44,10 +47,14 @@ PUBLISH_INTERVAL = float(os.getenv('PUBLISH_INTERVAL', 5))
 TELEGRAM_TOKEN = "889031909:AAFDxsFy63KBEFWs3qw9qWlrU2XOB2wZmg"
 CHAT_ID = "6936368458"
 
-bot = Bot(token=TELEGRAM_TOKEN)
+bot = Bot(token=TELEGRAM_TOKEN) if Bot is not None else None
 
 def send_telegram_alert(message):
     """Envoie une alerte Telegram"""
+    if bot is None:
+        logger.warning(" Module telegram indisponible, alerte ignoree")
+        return
+
     try:
         bot.send_message(chat_id=CHAT_ID, text=message)
         logger.info(f" Alerte Telegram envoyée : {message}")
