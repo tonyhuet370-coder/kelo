@@ -1,6 +1,3 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from telegram import Bot
 import json
 import random
 import time
@@ -9,6 +6,9 @@ import logging
 from datetime import datetime
 import threading
 import paho.mqtt.client as mqtt
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from telegram import Bot
 
 # ============================
 # LOGGING
