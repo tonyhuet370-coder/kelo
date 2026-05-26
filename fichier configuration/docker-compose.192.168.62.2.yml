@@ -14,7 +14,7 @@ services:
       - FLASK_ENV=production
       - SIMULATEUR_PORT=5000
       - SIMULATEUR_HOST=0.0.0.0
-      - MQTT_BROKER=mosquitto
+      - MQTT_BROKER=${MQTT_BROKER:-mosquitto}
       - MQTT_PORT=${MQTT_PORT:-1883}
       - MQTT_TOPIC_TEMPLATE=${MQTT_TOPIC_TEMPLATE:-kelo/nid/{nid}/telemetry}
       - SIMULATED_NID=${SIMULATED_NID:-A12}
