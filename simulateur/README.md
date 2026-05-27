@@ -81,6 +81,7 @@ Vérification de santé du service
 - `TELEGRAM_ALERTS_ENABLED` : Active l'envoi des alertes Telegram
 - `TELEGRAM_BOT_TOKEN` : Token du bot Telegram
 - `TELEGRAM_CHAT_ID` : Identifiant du chat ou du groupe cible
+- `TELEGRAM_CHAT_IDS` : Liste d'identifiants Telegram separes par des virgules pour notifier plusieurs destinataires
 - `ALERT_COOLDOWN_SECONDS` : Délai anti-spam entre deux alertes du meme type
 - `TEMPERATURE_ALERT_THRESHOLD` : Seuil haut de temperature
 - `HUMIDITE_ALERT_THRESHOLD` : Seuil haut d'humidite
@@ -95,6 +96,7 @@ Le simulateur peut envoyer une alerte Telegram immediate quand un capteur depass
 2. Recuperez le token du bot.
 3. Recuperez l'identifiant du chat ou du groupe recevant les alertes.
 4. Renseignez `TELEGRAM_BOT_TOKEN` et `TELEGRAM_CHAT_ID` dans votre environnement ou dans `.env`.
+5. Pour notifier plusieurs personnes, renseignez `TELEGRAM_CHAT_IDS` avec plusieurs IDs separes par des virgules.
 
 Les alertes sont declenchees automatiquement lors de la generation d'une mesure ou via l'endpoint `POST /sensor-data` pour des donnees envoyees par un capteur externe.
 

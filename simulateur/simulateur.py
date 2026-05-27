@@ -43,7 +43,15 @@ VIBRATION_ALERT_THRESHOLD = float(os.getenv('VIBRATION_ALERT_THRESHOLD', 5))
 TENSION_ALERT_THRESHOLD = float(os.getenv('TENSION_ALERT_THRESHOLD', 1))
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '').strip()
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '').strip()
+TELEGRAM_CHAT_IDS = [
+    chat_id.strip()
+    for chat_id in os.getenv('TELEGRAM_CHAT_IDS', '').split(',')
+    if chat_id.strip()
+]
 TELEGRAM_ALERTS_ENABLED = os.getenv('TELEGRAM_ALERTS_ENABLED', 'true').lower() in {'1', 'true', 'yes', 'on'}
+
+if TELEGRAM_CHAT_ID and TELEGRAM_CHAT_ID not in TELEGRAM_CHAT_IDS:
+    TELEGRAM_CHAT_IDS.append(TELEGRAM_CHAT_ID)
 
 # ============================
 # TELEGRAM BOT
@@ -57,20 +65,26 @@ def send_telegram_alert(message):
     if not TELEGRAM_ALERTS_ENABLED:
         return
 
-    if not TELEGRAM_API_URL or not TELEGRAM_CHAT_ID:
+    if not TELEGRAM_API_URL or not TELEGRAM_CHAT_IDS:
         logger.warning(" Telegram non configure, alerte ignoree")
         return
 
-    try:
-        response = requests.post(
-            TELEGRAM_API_URL,
-            json={"chat_id": TELEGRAM_CHAT_ID, "text": message},
-            timeout=10
-        )
-        response.raise_for_status()
-        logger.info(f" Alerte Telegram envoyee : {message}")
-    except Exception as e:
-        logger.error(f" Erreur Telegram : {e}")
+    has_error = False
+    for chat_id in TELEGRAM_CHAT_IDS:
+        try:
+            response = requests.post(
+                TELEGRAM_API_URL,
+                json={"chat_id": chat_id, "text": message},
+                timeout=10
+            )
+            response.raise_for_status()
+            logger.info(f" Alerte Telegram envoyee a {chat_id} : {message}")
+        except Exception as e:
+            has_error = True
+            logger.error(f" Erreur Telegram pour {chat_id} : {e}")
+
+    if has_error:
+        logger.warning(" Une ou plusieurs alertes Telegram n'ont pas pu etre envoyees")
 
 def should_send_alert(alert_key):
     now = time.time()
