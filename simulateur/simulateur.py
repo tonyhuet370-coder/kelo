@@ -5,13 +5,10 @@ import os
 import logging
 from datetime import datetime
 import threading
+import requests
 import paho.mqtt.client as mqtt
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-try:
-    from telegram import Bot
-except ImportError:
-    Bot = None
 
 # ============================
 # LOGGING
@@ -40,26 +37,49 @@ MQTT_PORT = int(os.getenv('MQTT_PORT', 1883))
 MQTT_TOPIC_TEMPLATE = os.getenv('MQTT_TOPIC_TEMPLATE', 'kelo/nid/{nid}/telemetry')
 SIMULATED_NID = os.getenv('SIMULATED_NID', 'A12')
 PUBLISH_INTERVAL = float(os.getenv('PUBLISH_INTERVAL', 5))
+TEMPERATURE_ALERT_THRESHOLD = float(os.getenv('TEMPERATURE_ALERT_THRESHOLD', 32))
+HUMIDITE_ALERT_THRESHOLD = float(os.getenv('HUMIDITE_ALERT_THRESHOLD', 95))
+VIBRATION_ALERT_THRESHOLD = float(os.getenv('VIBRATION_ALERT_THRESHOLD', 5))
+TENSION_ALERT_THRESHOLD = float(os.getenv('TENSION_ALERT_THRESHOLD', 1))
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '').strip()
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '').strip()
+TELEGRAM_ALERTS_ENABLED = os.getenv('TELEGRAM_ALERTS_ENABLED', 'true').lower() in {'1', 'true', 'yes', 'on'}
 
 # ============================
 # TELEGRAM BOT
 # ============================
-TELEGRAM_TOKEN = "889031909:AAFDxsFy63KBEFWs3qw9qWlrU2XOB2wZmg"
-CHAT_ID = "6936368458"
-
-bot = Bot(token=TELEGRAM_TOKEN) if Bot is not None else None
+TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage" if TELEGRAM_BOT_TOKEN else None
+last_alert_sent_at = {}
+ALERT_COOLDOWN_SECONDS = float(os.getenv('ALERT_COOLDOWN_SECONDS', 60))
 
 def send_telegram_alert(message):
     """Envoie une alerte Telegram"""
-    if bot is None:
-        logger.warning(" Module telegram indisponible, alerte ignoree")
+    if not TELEGRAM_ALERTS_ENABLED:
+        return
+
+    if not TELEGRAM_API_URL or not TELEGRAM_CHAT_ID:
+        logger.warning(" Telegram non configure, alerte ignoree")
         return
 
     try:
-        bot.send_message(chat_id=CHAT_ID, text=message)
-        logger.info(f" Alerte Telegram envoyée : {message}")
+        response = requests.post(
+            TELEGRAM_API_URL,
+            json={"chat_id": TELEGRAM_CHAT_ID, "text": message},
+            timeout=10
+        )
+        response.raise_for_status()
+        logger.info(f" Alerte Telegram envoyee : {message}")
     except Exception as e:
         logger.error(f" Erreur Telegram : {e}")
+
+def should_send_alert(alert_key):
+    now = time.time()
+    last_sent_at = last_alert_sent_at.get(alert_key, 0)
+    if now - last_sent_at < ALERT_COOLDOWN_SECONDS:
+        return False
+
+    last_alert_sent_at[alert_key] = now
+    return True
 
 # ============================
 # MQTT
@@ -112,14 +132,27 @@ def generate_data(nid):
 # ALERTES
 # ============================
 def check_alerts(data):
-    if data["temperature"] > 32:
-        send_telegram_alert(f"🔥 Température élevée : {data['temperature']}°C")
+    nid = data.get("nid", "inconnu")
 
-    if data["vibration"] > 5:
-        send_telegram_alert(f"⚠️ Vibration anormale : {data['vibration']} Hz")
+    if data["temperature"] > TEMPERATURE_ALERT_THRESHOLD and should_send_alert((nid, "temperature")):
+        send_telegram_alert(
+            f"Alerte nid {nid}: temperature elevee ({data['temperature']} C)"
+        )
 
-    if data["tension"] < 1:
-        send_telegram_alert(f"🔋 Tension faible : {data['tension']}V")
+    if data["humidite"] > HUMIDITE_ALERT_THRESHOLD and should_send_alert((nid, "humidite")):
+        send_telegram_alert(
+            f"Alerte nid {nid}: humidite elevee ({data['humidite']} %)"
+        )
+
+    if data["vibration"] > VIBRATION_ALERT_THRESHOLD and should_send_alert((nid, "vibration")):
+        send_telegram_alert(
+            f"Alerte nid {nid}: vibration elevee ({data['vibration']})"
+        )
+
+    if data["tension"] < TENSION_ALERT_THRESHOLD and should_send_alert((nid, "tension")):
+        send_telegram_alert(
+            f"Alerte nid {nid}: tension faible ({data['tension']} V)"
+        )
 
 # ============================
 # THREAD DE PUBLICATION MQTT
@@ -155,6 +188,21 @@ def alert():
     message = f"🚨 Alerte : {data['type']} - Valeur : {data['value']}"
     send_telegram_alert(message)
     return jsonify({"status": "sent"})
+
+@app.route('/sensor-data', methods=['POST'])
+def receive_sensor_data():
+    data = request.get_json(silent=True) or {}
+
+    required_fields = {'nid', 'temperature', 'humidite', 'vibration', 'tension'}
+    missing_fields = sorted(required_fields - set(data.keys()))
+    if missing_fields:
+        return jsonify({
+            "status": "error",
+            "message": f"Champs manquants : {', '.join(missing_fields)}"
+        }), 400
+
+    check_alerts(data)
+    return jsonify({"status": "ok", "message": "Donnees capteur traitees"})
 
 # ============================
 # MAIN

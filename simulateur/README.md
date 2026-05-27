@@ -78,6 +78,37 @@ Vérification de santé du service
 - `MQTT_TOPIC_TEMPLATE` : Topic de publication (défaut: `kelo/nid/{nid}/telemetry`)
 - `SIMULATED_NID` : Identifiant du nid simulé (un seul nid)
 - `PUBLISH_INTERVAL` : Intervalle de publication en secondes
+- `TELEGRAM_ALERTS_ENABLED` : Active l'envoi des alertes Telegram
+- `TELEGRAM_BOT_TOKEN` : Token du bot Telegram
+- `TELEGRAM_CHAT_ID` : Identifiant du chat ou du groupe cible
+- `ALERT_COOLDOWN_SECONDS` : Délai anti-spam entre deux alertes du meme type
+- `TEMPERATURE_ALERT_THRESHOLD` : Seuil haut de temperature
+- `HUMIDITE_ALERT_THRESHOLD` : Seuil haut d'humidite
+- `VIBRATION_ALERT_THRESHOLD` : Seuil haut de vibration
+- `TENSION_ALERT_THRESHOLD` : Seuil bas de tension
+
+## Alertes Telegram
+
+Le simulateur peut envoyer une alerte Telegram immediate quand un capteur depasse un seuil critique.
+
+1. Creez un bot avec BotFather sur Telegram.
+2. Recuperez le token du bot.
+3. Recuperez l'identifiant du chat ou du groupe recevant les alertes.
+4. Renseignez `TELEGRAM_BOT_TOKEN` et `TELEGRAM_CHAT_ID` dans votre environnement ou dans `.env`.
+
+Les alertes sont declenchees automatiquement lors de la generation d'une mesure ou via l'endpoint `POST /sensor-data` pour des donnees envoyees par un capteur externe.
+
+Exemple de payload pour `POST /sensor-data` :
+
+```json
+{
+  "nid": "A12",
+  "temperature": 34.6,
+  "humidite": 96.1,
+  "vibration": 5.4,
+  "tension": 0.8
+}
+```
 
 ## Test rapide avec le broker MQTT du projet
 
