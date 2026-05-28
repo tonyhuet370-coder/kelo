@@ -56,9 +56,15 @@ if TELEGRAM_CHAT_ID and TELEGRAM_CHAT_ID not in TELEGRAM_CHAT_IDS:
 # ============================
 # TELEGRAM BOT
 # ============================
+ HEAD
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage" if TELEGRAM_BOT_TOKEN else None
 last_alert_sent_at = {}
 ALERT_COOLDOWN_SECONDS = float(os.getenv('ALERT_COOLDOWN_SECONDS', 60))
+TELEGRAM_TOKEN = "8678984997:AAEleM112hzZeiwOMYYVANCpsuHcHhqs0jA"
+CHAT_ID = "6936368458"
+
+bot = Bot(token=TELEGRAM_TOKEN)
+ 879e283 (Mise à jour app collector + docker-compose + simulateur)
 
 def send_telegram_alert(message):
     """Envoie une alerte Telegram"""
@@ -189,15 +195,17 @@ def publish_loop():
         time.sleep(PUBLISH_INTERVAL)
 
 # ============================
-# ROUTES FLASK
+# ROUTES FLASK (API REST)
 # ============================
 @app.route('/data', methods=['GET'])
 def send_data():
+    """API REST : renvoie les données JSON du simulateur"""
     data = generate_data(SIMULATED_NID)
     return jsonify(data)
 
 @app.route('/alert', methods=['POST'])
 def alert():
+    """API REST : envoie une alerte Telegram manuelle"""
     data = request.get_json()
     message = f"🚨 Alerte : {data['type']} - Valeur : {data['value']}"
     send_telegram_alert(message)
