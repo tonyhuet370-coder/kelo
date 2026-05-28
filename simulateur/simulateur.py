@@ -9,6 +9,8 @@ import requests
 import paho.mqtt.client as mqtt
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from auth_routes import auth_bp
+from auth import init_auth_db
 
 # ============================
 # LOGGING
@@ -56,15 +58,9 @@ if TELEGRAM_CHAT_ID and TELEGRAM_CHAT_ID not in TELEGRAM_CHAT_IDS:
 # ============================
 # TELEGRAM BOT
 # ============================
- HEAD
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage" if TELEGRAM_BOT_TOKEN else None
 last_alert_sent_at = {}
 ALERT_COOLDOWN_SECONDS = float(os.getenv('ALERT_COOLDOWN_SECONDS', 60))
-TELEGRAM_TOKEN = "8678984997:AAEleM112hzZeiwOMYYVANCpsuHcHhqs0jA"
-CHAT_ID = "6936368458"
-
-bot = Bot(token=TELEGRAM_TOKEN)
- 879e283 (Mise à jour app collector + docker-compose + simulateur)
 
 def send_telegram_alert(message):
     """Envoie une alerte Telegram"""
@@ -230,6 +226,13 @@ def receive_sensor_data():
 # MAIN
 # ============================
 if __name__ == '__main__':
+    # Initialiser la base de données d'authentification
+    init_auth_db()
+    
+    # Enregistrer les routes d'authentification
+    app.register_blueprint(auth_bp)
+    
+    # Démarrer la publication MQTT en arrière-plan
     threading.Thread(target=publish_loop, daemon=True).start()
-    logger.info(f" Simulateur démarré sur {HOST}:{PORT}")
+    logger.info(f"Simulateur démarré sur {HOST}:{PORT}")
     app.run(host=HOST, port=PORT, debug=DEBUG)
