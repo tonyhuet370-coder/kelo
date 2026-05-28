@@ -7,7 +7,7 @@ import time
 from aiohttp import web
 import threading
 import paho.mqtt.client as mqtt
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 MQTT_BROKER = os.getenv('MQTT_BROKER', 'mosquitto')
@@ -86,6 +86,76 @@ def query_results(limit: int = 100, nid: str | None = None) -> list[dict]:
         for row in rows
     ]
 
+
+def query_history_by_date(nid: str | None = None, hours: int = 24, limit: int = 1000) -> list[dict]:
+    """Récupère l'historique des données pour une période donnée."""
+    cutoff_time = (datetime.utcnow() - timedelta(hours=hours)).isoformat() + 'Z'
+    
+    sql = "SELECT id, received_at, topic, nid, payload FROM results WHERE received_at >= ?"
+    params: tuple = (cutoff_time,)
+    
+    if nid:
+        sql += " AND nid = ?"
+        params = (*params, nid)
+    
+    sql += " ORDER BY received_at DESC LIMIT ?"
+    params = (*params, limit)
+    
+    with _db_lock:
+        cursor = db_conn.cursor()
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+    
+    return [
+        {
+            "id": row["id"],
+            "received_at": row["received_at"],
+            "topic": row["topic"],
+            "nid": row["nid"],
+            "payload": json.loads(row["payload"]),
+        }
+        for row in rows
+    ]
+
+
+def get_statistics(nid: str) -> dict | None:
+    """Calcule les statistiques moyennes/min/max pour un nid."""
+    sql = """
+        SELECT 
+            COUNT(*) as count,
+            AVG(CAST(json_extract(payload, '$.temperature') AS REAL)) as avg_temp,
+            MIN(CAST(json_extract(payload, '$.temperature') AS REAL)) as min_temp,
+            MAX(CAST(json_extract(payload, '$.temperature') AS REAL)) as max_temp,
+            AVG(CAST(json_extract(payload, '$.humidite') AS REAL)) as avg_humidity,
+            MIN(CAST(json_extract(payload, '$.humidite') AS REAL)) as min_humidity,
+            MAX(CAST(json_extract(payload, '$.humidite') AS REAL)) as max_humidity
+        FROM results 
+        WHERE nid = ?
+        AND received_at >= datetime('now', '-24 hours')
+    """
+    
+    with _db_lock:
+        cursor = db_conn.cursor()
+        cursor.execute(sql, (nid,))
+        row = cursor.fetchone()
+    
+    if not row:
+        return None
+    
+    return {
+        "count": row[0],
+        "temperature": {
+            "avg": round(row[1], 2) if row[1] else None,
+            "min": round(row[2], 2) if row[2] else None,
+            "max": round(row[3], 2) if row[3] else None,
+        },
+        "humidity": {
+            "avg": round(row[4], 2) if row[4] else None,
+            "min": round(row[5], 2) if row[5] else None,
+            "max": round(row[6], 2) if row[6] else None,
+        }
+    }
+
 loop = None
 
 async def sse_handler(request):
@@ -123,6 +193,46 @@ async def results_handler(request):
     return web.json_response({
         "count": len(results),
         "results": results,
+    })
+
+
+async def history_handler(request):
+    """Récupère l'historique sur une période donnée (par défaut 24h)."""
+    params = request.rel_url.query
+    nid = params.get('nid')
+    hours = int(params.get('hours', 24))
+    limit = int(params.get('limit', 1000))
+    
+    if limit <= 0:
+        limit = 1000
+    if hours <= 0:
+        hours = 24
+    
+    results = query_history_by_date(nid=nid, hours=hours, limit=limit)
+    
+    return web.json_response({
+        "count": len(results),
+        "period_hours": hours,
+        "results": results,
+    })
+
+
+async def stats_handler(request):
+    """Récupère les statistiques d'un nid sur 24h."""
+    params = request.rel_url.query
+    nid = params.get('nid')
+    
+    if not nid:
+        return web.json_response({'error': 'nid requis'}, status=400)
+    
+    stats = get_statistics(nid)
+    
+    if not stats:
+        return web.json_response({'error': 'Aucune donnée pour ce nid'}, status=404)
+    
+    return web.json_response({
+        "nid": nid,
+        "statistics": stats,
     })
 
 def on_connect(client, userdata, flags, rc):
@@ -190,11 +300,15 @@ async def init_app():
     # Application web: endpoints de lecture
     # - /collector/latest : snapshot JSON
     # - /collector/events : stream SSE
-    # - /collector/results : historique JSON
+    # - /collector/results : historique JSON (dernières N entrées)
+    # - /collector/history : historique sur période (dernières X heures)
+    # - /collector/stats : statistiques (min/max/avg sur 24h)
     app = web.Application()
     app.router.add_get('/collector/events', sse_handler)
     app.router.add_get('/collector/latest', latest_handler)
     app.router.add_get('/collector/results', results_handler)
+    app.router.add_get('/collector/history', history_handler)
+    app.router.add_get('/collector/stats', stats_handler)
     return app
 
 
