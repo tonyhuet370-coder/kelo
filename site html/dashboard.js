@@ -1,360 +1,364 @@
-const MQTT_WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const DEFAULT_MQTT_WS_URL = `${MQTT_WS_PROTOCOL}//${window.location.hostname}:9001`;
-const DEFAULT_MQTT_TOPICS = ['kelo/nid/+/telemetry', 'kelonia/#'];
-const MQTT_WS_URL = (() => { try { return localStorage.getItem('mqttWsUrl'); } catch (e) { return null; } })() || DEFAULT_MQTT_WS_URL;
-const MQTT_TOPICS = (() => {
-  const saved = (() => { try { return localStorage.getItem('mqttTopic'); } catch (e) { return null; } })();
-  if (!saved) return DEFAULT_MQTT_TOPICS;
-  return String(saved).split(',').map((s) => s.trim()).filter(Boolean);
+/* ============================================================
+ * dashboard.js — Kelonia Turtle Nest Monitor
+ * Améliorations : lisibilité, robustesse, sécurité
+ * ============================================================ */
+
+'use strict';
+
+// ─────────────────────────────────────────────
+// 1. CONFIGURATION
+// ─────────────────────────────────────────────
+
+const CONFIG = Object.freeze({
+  mqtt: {
+    protocol: window.location.protocol === 'https:' ? 'wss:' : 'ws:',
+    get defaultUrl() {
+      return `${this.protocol}//${window.location.hostname}:9001`;
+    },
+    reconnectPeriod: 2000,
+    connectTimeout: 5000,
+    get url() {
+      return Storage.get('mqttWsUrl') || this.defaultUrl;
+    },
+    get topics() {
+      const saved = Storage.get('mqttTopic');
+      if (!saved) return ['kelo/nid/+/telemetry', 'kelonia/#'];
+      return String(saved).split(',').map((s) => s.trim()).filter(Boolean);
+    }
+  },
+  charts: {
+    maxPoints: 24,
+    historyMaxPoints: 48,
+    historyDefaultHours: 24
+  },
+  storage: {
+    authKey: 'keloniaAuth',
+    userKey: 'keloniaUser',
+    roleKey: 'keloniaRole'
+  },
+  alerts: Object.freeze({
+    temperature: { min: 24, max: 34 },
+    humidite:    { min: 60, max: 95 },
+    vibration:   { min: 3.0, max: 4.5 },
+    tension:     { min: 0.5, max: 4.5 }
+  }),
+  alertLogMaxItems: 80,
+  collectorPollInterval: 5000
+});
+
+// ─────────────────────────────────────────────
+// 2. STOCKAGE RÉSILIENT (localStorage → sessionStorage → cookie)
+// ─────────────────────────────────────────────
+
+const Storage = (() => {
+  function _cookie(key) {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${encodeURIComponent(key)}=([^;]*)`));
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  return {
+    get(key) {
+      try { const v = localStorage.getItem(key);   if (v !== null) return v; } catch (_) {}
+      try { const v = sessionStorage.getItem(key); if (v !== null) return v; } catch (_) {}
+      return _cookie(key);
+    },
+
+    set(key, value) {
+      try { localStorage.setItem(key, value);   return; } catch (_) {}
+      try { sessionStorage.setItem(key, value); return; } catch (_) {}
+      document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; path=/; SameSite=Strict`;
+    },
+
+    remove(key) {
+      try { localStorage.removeItem(key);   } catch (_) {}
+      try { sessionStorage.removeItem(key); } catch (_) {}
+      document.cookie = `${encodeURIComponent(key)}=; Max-Age=0; path=/; SameSite=Strict`;
+    }
+  };
 })();
-const MAX_POINTS = 12;
-const AUTH_KEY = 'keloniaAuth';
-const ALERT_LIMITS = {
-  temperature: { min: 24, max: 34 },
-  humidite: { min: 60, max: 95 },
-  vibration: { min: 3.0, max: 4.5 },
-  tension: { min: 0.5, max: 4.5 }
+
+// ─────────────────────────────────────────────
+// 3. AUTHENTIFICATION & RÔLES
+// ─────────────────────────────────────────────
+
+const Auth = {
+  isAuthenticated: () => Storage.get(CONFIG.storage.authKey) === '1',
+
+  requireAuth() {
+    if (!this.isAuthenticated()) {
+      // Redirection sûre : on ne transmet pas l'URL courante pour éviter les open-redirects.
+      window.location.replace(`${window.location.origin}/login.html`);
+      return false;
+    }
+    return true;
+  },
+
+  getUser:  () => Storage.get(CONFIG.storage.userKey) || 'inconnu',
+  getRole:  () => Storage.get(CONFIG.storage.roleKey) || 'viewer',
+  isAdmin:  () => Auth.getRole() === 'admin',
+
+  logout() {
+    Storage.remove(CONFIG.storage.authKey);
+    Storage.remove(CONFIG.storage.userKey);
+    Storage.remove(CONFIG.storage.roleKey);
+    Realtime.stop();
+    window.location.replace(`${window.location.origin}/login.html`);
+  }
 };
 
-const USER_KEY = 'keloniaUser';
-const ROLE_KEY = 'keloniaRole';
+// ─────────────────────────────────────────────
+// 4. UTILITAIRES
+// ─────────────────────────────────────────────
 
-function storageGet(key) {
-  try {
-    return localStorage.getItem(key);
-  } catch (err) {
-    // localStorage may be blocked by browser privacy settings.
+/**
+ * Retourne le premier Number.isFinite parmi les arguments.
+ * Évite d'utiliser Number() sur des objets non numériques.
+ */
+function pickNumber(...values) {
+  for (const v of values) {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
   }
-
-  try {
-    return sessionStorage.getItem(key);
-  } catch (err) {
-    // sessionStorage may also be blocked in strict modes.
-  }
-
-  const cookieMatch = document.cookie.match(new RegExp(`(?:^|; )${key}=([^;]*)`));
-  return cookieMatch ? decodeURIComponent(cookieMatch[1]) : null;
+  return NaN;
 }
 
-function storageSet(key, value) {
-  try {
-    localStorage.setItem(key, value);
-    return;
-  } catch (err) {
-    // Ignore and fallback.
-  }
-
-  try {
-    sessionStorage.setItem(key, value);
-    return;
-  } catch (err) {
-    // Ignore and fallback.
-  }
-
-  document.cookie = `${key}=${encodeURIComponent(value)}; path=/; SameSite=Lax`;
-}
-
-function storageRemove(key) {
-  try {
-    localStorage.removeItem(key);
-  } catch (err) {
-    // Ignore and continue cleanup.
-  }
-
-  try {
-    sessionStorage.removeItem(key);
-  } catch (err) {
-    // Ignore and continue cleanup.
-  }
-
-  document.cookie = `${key}=; Max-Age=0; path=/; SameSite=Lax`;
-}
-
-let tempEl = null;
-let humEl = null;
-let vibEl = null;
-let soundEl = null;
-let nidSelectEl = null;
-let logoutBtnEl = null;
-let userInfoEl = null;
-let userRoleEl = null;
-let grafanaLinkEl = null;
-let alertLogListEl = null;
-let alertLogEmptyEl = null;
-let mqttClient = null;
-let collectorEventsSource = null;
-let collectorPollHandle = null;
-let lastPayloadSignature = null;
-let selectedNid = null;
-
-const nidStates = new Map();
-
-function createLineChart(canvasId, label, color, data, chartLabels) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas || typeof canvas.getContext !== 'function') return null;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-
-  return new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: chartLabels,
-      datasets: [{
-        label,
-        data,
-        borderColor: color,
-        backgroundColor: color.replace('1)', '0.2)'),
-        tension: 0.3
-      }]
-    },
-    options: {
-      responsive: true,
-      animation: {
-        duration: 450,
-        easing: 'easeOutCubic'
-      },
-      plugins: {
-        legend: { labels: { color: '#f5f5f5' } }
-      },
-      scales: {
-        x: { ticks: { color: '#cfd8dc' } },
-        y: { ticks: { color: '#cfd8dc' } }
-      }
-    }
-  });
-}
-
-function isChartUsable(chart) {
-  return Boolean(chart && chart.canvas && chart.canvas.isConnected && chart.ctx);
-}
-
-function updateChartIfUsable(chart, values, labels) {
-  if (!isChartUsable(chart)) return;
-  chart.data.datasets[0].data = values;
-  chart.data.labels = labels;
-  chart.update();
-}
-
+/**
+ * Assainit une chaîne pour l'utiliser en tant qu'ID HTML.
+ * N'autorise que les caractères alphanumériques, tirets et underscores.
+ */
 function sanitizeId(value) {
   return String(value).replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
-function initDomRefs() {
-  tempEl = document.getElementById('temp-value');
-  humEl = document.getElementById('hum-value');
-  vibEl = document.getElementById('vib-value');
-  soundEl = document.getElementById('sound-value');
-  nidSelectEl = document.getElementById('nidSelect');
-  userInfoEl = document.getElementById('userInfo');
-  userRoleEl = document.getElementById('userRole');
-  grafanaLinkEl = document.getElementById('grafanaLink');
-  alertLogListEl = document.getElementById('alertLogList');
-  alertLogEmptyEl = document.getElementById('alertLogEmpty');
-  logoutBtnEl = document.getElementById('logoutBtn');
+function parseIsoDate(value) {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
-  if (grafanaLinkEl) {
-    grafanaLinkEl.href = '/grafana/';
-  }
+function formatTimeLabel(date) {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
 
-  if (nidSelectEl) {
-    nidSelectEl.addEventListener('change', () => {
-      selectedNid = nidSelectEl.value || null;
-      applyNidVisibility();
-      updateSummaryCardsForSelected();
+// ─────────────────────────────────────────────
+// 5. GRAPHIQUES
+// ─────────────────────────────────────────────
+
+const Charts = {
+  /** Crée un graphique Chart.js linéaire. Retourne null si le canvas est absent. */
+  create(canvasId, label, color, data = [], labels = []) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || typeof canvas.getContext !== 'function') return null;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    return new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label,
+          data,
+          borderColor: color,
+          backgroundColor: color.replace('1)', '0.2)'),
+          tension: 0.3,
+          spanGaps: true,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: { duration: 450, easing: 'easeOutCubic' },
+        plugins: { legend: { labels: { color: '#f5f5f5' } } },
+        scales: {
+          x: { ticks: { color: '#cfd8dc' } },
+          y: { ticks: { color: '#cfd8dc' } }
+        }
+      }
     });
+  },
+
+  /** Vérifie qu'un graphique est utilisable (canvas encore dans le DOM). */
+  isUsable(chart) {
+    return Boolean(chart?.canvas?.isConnected && chart.ctx);
+  },
+
+  /** Met à jour les données d'un graphique si utilisable. */
+  update(chart, values, labels) {
+    if (!this.isUsable(chart)) return;
+    chart.data.datasets[0].data = values;
+    chart.data.labels = labels;
+    chart.update();
+  }
+};
+
+// ─────────────────────────────────────────────
+// 6. SÉRIES TEMPORELLES
+// ─────────────────────────────────────────────
+
+const METRIC_ALIASES = Object.freeze({
+  temperature: ['temperature', 'temp'],
+  humidite:    ['humidite', 'humidity', 'hum'],
+  vibration:   ['vibration', 'vib'],
+  tension:     ['tension', 'sound']
+});
+
+function createSeries() {
+  return { labels: [], values: [] };
+}
+
+/**
+ * Ajoute un point à une série en maintenant une fenêtre glissante.
+ * Retourne true si le point a été ajouté (valeur finie).
+ */
+function pushPoint(series, value, timeLabel) {
+  if (!Number.isFinite(value)) return false;
+
+  series.values.push(value);
+  series.labels.push(timeLabel);
+
+  if (series.values.length > CONFIG.charts.maxPoints) {
+    series.values.shift();
+    series.labels.shift();
+  }
+  return true;
+}
+
+/** Construit une série régulière à partir de l'historique brut. */
+function buildRegularSeries(history, metric, maxPoints = CONFIG.charts.historyMaxPoints) {
+  if (!Array.isArray(history) || history.length === 0) return createSeries();
+
+  const sorted = [...history].sort((a, b) => new Date(a.received_at) - new Date(b.received_at));
+  const step    = Math.max(1, Math.ceil(sorted.length / maxPoints));
+  const aliases = METRIC_ALIASES[metric] || [metric];
+  const labels  = [];
+  const values  = [];
+
+  for (let i = 0; i < sorted.length; i += step) {
+    const item = sorted[i];
+    const date = parseIsoDate(item.received_at);
+    if (!date) continue;
+
+    labels.push(formatTimeLabel(date));
+    const payload = item.payload ?? {};
+    const value   = pickNumber(...aliases.map((k) => payload[k]));
+    values.push(Number.isFinite(value) ? value : null);
   }
 
-  if (logoutBtnEl) {
-    logoutBtnEl.addEventListener('click', () => {
-      storageRemove(AUTH_KEY);
-      storageRemove(USER_KEY);
-      storageRemove(ROLE_KEY);
-      stopRealtimeUpdates();
-      window.location.href = `${window.location.origin}/login.html`;
-    });
-  }
+  return { labels, values };
 }
 
-function ensureAuthenticated() {
-  if (storageGet(AUTH_KEY) === '1') return true;
-  window.location.href = `${window.location.origin}/login.html`;
-  return false;
-}
-
-function getAuthenticatedUser() {
-  return storageGet(USER_KEY) || 'inconnu';
-}
-
-function getCurrentUserRole() {
-  return storageGet(ROLE_KEY) || 'viewer';
-}
-
-function applyRoleAccessControl() {
-  const role = getCurrentUserRole();
-  if (role !== 'admin') {
-    if (nidSelectEl) nidSelectEl.disabled = true;
-    const infoCard = document.createElement('p');
-    infoCard.style.fontSize = '0.9rem';
-    infoCard.style.color = '#f6c23e';
-    infoCard.textContent = 'Mode lecteur : sélection de nid désactivée. Contactez un administrateur pour modifier les paramètres.';
-    const filterWrap = document.querySelector('.nid-filter-wrap');
-    if (filterWrap && !filterWrap.querySelector('.role-info')) {
-      infoCard.className = 'role-info';
-      filterWrap.appendChild(infoCard);
-    }
-  }
-}
-
-function applyNidVisibility() {
-  const container = document.getElementById('nidsContainer');
-  if (!container) return;
-
-  const blocks = container.querySelectorAll('.nid-block');
-  blocks.forEach((block) => {
-    const nid = block.getAttribute('data-nid');
-    block.style.display = selectedNid && nid === selectedNid ? 'block' : 'none';
-  });
-}
-
-function updateUserHeader() {
-  if (userInfoEl) userInfoEl.textContent = `Utilisateur : ${getAuthenticatedUser()}`;
-  if (userRoleEl) userRoleEl.textContent = `Rôle : ${getCurrentUserRole()}`;
-}
-
-function updateSummaryCardsForSelected() {
-  if (!selectedNid) return;
-  const state = nidStates.get(selectedNid);
-  if (!state || !state.lastMetrics) return;
-
-  const metrics = state.lastMetrics;
-  if (tempEl && Number.isFinite(metrics.temperature)) tempEl.textContent = `${metrics.temperature.toFixed(2)} °C`;
-  if (humEl && Number.isFinite(metrics.humidite)) humEl.textContent = `${metrics.humidite.toFixed(2)} %`;
-  if (vibEl && Number.isFinite(metrics.vibration)) vibEl.textContent = `${metrics.vibration.toFixed(2)} Mpu`;
-  if (soundEl && Number.isFinite(metrics.tension)) soundEl.textContent = `${metrics.tension.toFixed(2)} V`;
-}
-
-function registerNidInSelect(nid) {
-  if (!nidSelectEl) return;
-
-  const exists = Array.from(nidSelectEl.options).some((option) => option.value === nid);
-  if (!exists) {
-    const option = document.createElement('option');
-    option.value = nid;
-    option.textContent = `Nid ${nid}`;
-    nidSelectEl.appendChild(option);
-  }
-
-  if (!selectedNid) {
-    selectedNid = nid;
-    nidSelectEl.value = nid;
-  }
-}
+// ─────────────────────────────────────────────
+// 7. EXTRACTION DU NID
+// ─────────────────────────────────────────────
 
 function extractNid(topic, payload) {
-  if (payload && payload.nid) return String(payload.nid);
+  // Priorité : champ explicite dans le payload
+  if (payload?.nid) return String(payload.nid);
 
-  const parts = String(topic || '').split('/').filter(Boolean);
+  const parts = String(topic ?? '').split('/').filter(Boolean);
+
+  // Topics kelo/nid/<id>/telemetry
   if (parts.length >= 3 && parts[0] === 'kelo' && parts[1] === 'nid') {
     return parts[2];
   }
 
-  // Pour les topics kelonia/SHT41, kelonia/MPU6050, kelonia/vibration :
-  // tous les capteurs appartiennent au même nid – utiliser le premier segment du topic
-  if (parts.length >= 1) return parts[0];
-
-  return 'inconnu';
+  // Fallback : premier segment du topic
+  return parts[0] ?? 'inconnu';
 }
 
-function createSeries() {
-  return {
-    labels: [],
-    values: []
-  };
-}
+// ─────────────────────────────────────────────
+// 8. JOURNALISATION DES ALERTES
+// ─────────────────────────────────────────────
 
-function getMetricLabel(metric) {
-  if (metric === 'temperature') return 'Température';
-  if (metric === 'humidite') return 'Humidité';
-  if (metric === 'vibration') return 'Vibration';
-  if (metric === 'tension') return 'Tension';
-  return metric;
-}
+const METRIC_LABELS = Object.freeze({
+  temperature: 'Température',
+  humidite:    'Humidité',
+  vibration:   'Vibration',
+  tension:     'Tension'
+});
 
-function appendAlertLog(message, metric) {
-  if (!alertLogListEl) return;
+const AlertLog = {
+  _listEl:  null,
+  _emptyEl: null,
 
-  if (alertLogEmptyEl) {
-    alertLogEmptyEl.style.display = 'none';
+  init(listEl, emptyEl) {
+    this._listEl  = listEl;
+    this._emptyEl = emptyEl;
+  },
+
+  append(message, metric) {
+    if (!this._listEl) return;
+    if (this._emptyEl) this._emptyEl.style.display = 'none';
+
+    const item = document.createElement('li');
+    item.className = `alert-log-item alert-log-critical alert-log-${metric}`;
+
+    const time = document.createElement('div');
+    time.className   = 'alert-log-time';
+    time.textContent = new Date().toLocaleTimeString();
+
+    const text = document.createElement('div');
+    text.className   = 'alert-log-message';
+    // textContent est sûr contre les injections XSS
+    text.textContent = message;
+
+    item.append(time, text);
+    this._listEl.prepend(item);
+
+    // Limite la taille du journal
+    while (this._listEl.children.length > CONFIG.alertLogMaxItems) {
+      this._listEl.removeChild(this._listEl.lastElementChild);
+    }
+  },
+
+  /** Enregistre une transition d'état d'alerte (entrée uniquement). */
+  logTransition(state, metric, isAlertNow, value) {
+    const previous = Boolean(state.alertStatus[metric]);
+    if (previous === isAlertNow || !Number.isFinite(value)) return;
+
+    state.alertStatus[metric] = isAlertNow;
+    if (!isAlertNow) return;  // Retour à la normale : pas de log
+
+    const limits    = CONFIG.alerts[metric];
+    const direction = value < limits.min ? 'trop basse' : 'trop élevée';
+    const label     = METRIC_LABELS[metric] ?? metric;
+    this.append(`${label} ${direction} – Nid ${state.nid} (${value.toFixed(2)})`, metric);
   }
+};
 
-  const item = document.createElement('li');
-  item.className = `alert-log-item alert-log-critical alert-log-${metric}`;
+// ─────────────────────────────────────────────
+// 9. ÉTAT PAR NID
+// ─────────────────────────────────────────────
 
-  const time = document.createElement('div');
-  time.className = 'alert-log-time';
-  time.textContent = new Date().toLocaleTimeString();
+const nidStates = new Map();
 
-  const text = document.createElement('div');
-  text.className = 'alert-log-message';
-  text.textContent = message;
-
-  item.appendChild(time);
-  item.appendChild(text);
-  alertLogListEl.prepend(item);
-
-  while (alertLogListEl.children.length > 80) {
-    alertLogListEl.removeChild(alertLogListEl.lastElementChild);
-  }
-}
-
-function logAlertTransition(state, metric, isAlertNow, value) {
-  const previous = Boolean(state.alertStatus[metric]);
-  if (previous === isAlertNow || !Number.isFinite(value)) return;
-
-  if (!isAlertNow) {
-    state.alertStatus[metric] = false;
-    return;
-  }
-
-  const limits = ALERT_LIMITS[metric];
-  const direction = value < limits.min ? 'trop basse' : 'trop élevée';
-  appendAlertLog(`${getMetricLabel(metric)} ${direction} chez le Nid ${state.nid} (${value.toFixed(2)})`, metric);
-  state.alertStatus[metric] = true;
-}
-
+/** Injecte le bloc HTML d'un nid dans le conteneur et crée son état. */
 function createNidState(nid) {
   const container = document.getElementById('nidsContainer');
   if (!container) return null;
 
   const safeNid = sanitizeId(nid);
+  // Vérification : le bloc existe déjà ?
+  if (document.getElementById(`nid-${safeNid}`)) return nidStates.get(nid) ?? null;
+
   const block = document.createElement('section');
   block.className = 'nid-block';
-  block.id = `nid-${safeNid}`;
+  block.id        = `nid-${safeNid}`;
   block.setAttribute('data-nid', nid);
 
+  // Toutes les chaînes interpolées sont des valeurs contrôlées (safeNid = alphanum/_/-)
   block.innerHTML = `
-    <h2>Nid ${nid}</h2>
+    <h2>Nid ${safeNid}</h2>
     <div class="charts nid-charts">
-      <div class="chart-container">
-        <h3>Température</h3>
-        <div class="alert" id="tempAlert_${safeNid}" style="display: none;">⚠️ Température trop élevée pour les nids de tortues : le seuil critique. Les nids de tortues deviennent dangereux lorsque la température du sable dépasse environ 33–34 °C</div>
-        <canvas id="tempChart_${safeNid}"></canvas>
-      </div>
-      <div class="chart-container">
-        <h3>Humidité</h3>
-        <div class="alert" id="humAlert_${safeNid}" style="display: none;">⚠️ Humidité anormale pour les nids de tortues : le seuil critique. L'humidité doit rester entre 60 et 95 % pour assurer un environnement optimal aux œufs</div>
-        <canvas id="humChart_${safeNid}"></canvas>
-      </div>
-      <div class="chart-container">
-        <h3>Vibrations</h3>
-        <div class="alert" id="vibAlert_${safeNid}" style="display: none;">⚠️ Vibrations élevées dans le nid : le seuil critique. Les vibrations excessives peuvent déranger et endommager les œufs. Les niveaux doivent rester entre 3,0 et 4,5 Mpu</div>
-        <canvas id="vibrationChart_${safeNid}"></canvas>
-      </div>
-      <div class="chart-container">
-        <h3>Tension</h3>
-        <div class="alert" id="tensionAlert_${safeNid}" style="display: none;">⚠️ Tension anormale</div>
-        <canvas id="tensionChart_${safeNid}"></canvas>
-      </div>
+      ${_chartSection('Température',  `tempAlert_${safeNid}`,     'tempChart_${safeNid}',
+        'Température trop élevée : le sable dépasse 33–34 °C, seuil critique pour les œufs.')}
+      ${_chartSection('Humidité',     `humAlert_${safeNid}`,      `humChart_${safeNid}`,
+        'Humidité anormale : doit rester entre 60 % et 95 % pour les œufs.')}
+      ${_chartSection('Vibrations',   `vibAlert_${safeNid}`,      `vibrationChart_${safeNid}`,
+        'Vibrations excessives : entre 3,0 et 4,5 Mpu pour ne pas endommager les œufs.')}
+      ${_chartSection('Tension',      `tensionAlert_${safeNid}`,  `tensionChart_${safeNid}`,
+        'Tension anormale détectée.')}
     </div>
   `;
 
@@ -364,338 +368,416 @@ function createNidState(nid) {
     nid,
     safeNid,
     lastMetrics: null,
-    alertStatus: {
-      temperature: false,
-      humidite: false,
-      vibration: false,
-      tension: false
-    },
-    series: {
+    alertStatus: { temperature: false, humidite: false, vibration: false, tension: false },
+    series:      {
       temperature: createSeries(),
-      humidite: createSeries(),
-      vibration: createSeries(),
-      tension: createSeries()
+      humidite:    createSeries(),
+      vibration:   createSeries(),
+      tension:     createSeries()
     },
     charts: {
-      temperature: createLineChart(
-        `tempChart_${safeNid}`,
-        `Température (°C) · Nid ${nid}`,
-        'rgba(75, 192, 192, 1)',
-        [],
-        []
-      ),
-      humidite: createLineChart(
-        `humChart_${safeNid}`,
-        `Humidité (%) · Nid ${nid}`,
-        'rgba(255, 204, 0, 1)',
-        [],
-        []
-      ),
-      vibration: createLineChart(
-        `vibrationChart_${safeNid}`,
-        `Vibrations (Mpu) · Nid ${nid}`,
-        'rgba(255, 206, 86, 1)',
-        [],
-        []
-      ),
-      tension: createLineChart(
-        `tensionChart_${safeNid}`,
-        `Tension (V) · Nid ${nid}`,
-        'rgba(153, 102, 255, 1)',
-        [],
-        []
-      )
+      temperature: Charts.create(`tempChart_${safeNid}`,      `Température (°C) · Nid ${nid}`, 'rgba(75, 192, 192, 1)'),
+      humidite:    Charts.create(`humChart_${safeNid}`,       `Humidité (%) · Nid ${nid}`,     'rgba(255, 204, 0, 1)'),
+      vibration:   Charts.create(`vibrationChart_${safeNid}`, `Vibrations (Mpu) · Nid ${nid}`, 'rgba(255, 206, 86, 1)'),
+      tension:     Charts.create(`tensionChart_${safeNid}`,   `Tension (V) · Nid ${nid}`,      'rgba(153, 102, 255, 1)')
     }
   };
 
   nidStates.set(nid, state);
-  registerNidInSelect(nid);
-  applyNidVisibility();
+  UI.registerNidInSelect(nid);
+  UI.applyNidVisibility();
   return state;
 }
 
+function _chartSection(title, alertId, chartId, alertMsg) {
+  return `
+    <div class="chart-container">
+      <h3>${title}</h3>
+      <div class="alert" id="${alertId}" style="display:none;" role="alert">⚠️ ${alertMsg}</div>
+      <canvas id="${chartId}"></canvas>
+    </div>
+  `;
+}
+
 function getNidState(nid) {
-  return nidStates.get(nid) || createNidState(nid);
+  return nidStates.get(nid) ?? createNidState(nid);
 }
 
-function pushPoint(series, value, timeLabel) {
-  if (!Number.isFinite(value)) return false;
-
-  series.values.push(value);
-  series.labels.push(timeLabel);
-
-  if (series.values.length > MAX_POINTS) {
-    series.values.shift();
-    series.labels.shift();
-  }
-
-  return true;
-}
+// ─────────────────────────────────────────────
+// 10. MISE À JOUR DES GRAPHIQUES ET ALERTES
+// ─────────────────────────────────────────────
 
 function updateAlerts(state, metrics) {
-  const safeNid = state.safeNid;
-  let isTempAlert = false;
-  let isHumAlert = false;
-  let isVibAlert = false;
-  let isTensionAlert = false;
+  const checks = {
+    temperature: metrics.temperature,
+    humidite:    metrics.humidite,
+    vibration:   metrics.vibration,
+    tension:     metrics.tension
+  };
 
-  const tempAlert = document.getElementById(`tempAlert_${safeNid}`);
-  isTempAlert = Number.isFinite(metrics.temperature)
-    && (metrics.temperature < ALERT_LIMITS.temperature.min || metrics.temperature > ALERT_LIMITS.temperature.max);
-  if (tempAlert) {
-    tempAlert.style.display = isTempAlert ? 'block' : 'none';
+  const alertIds = {
+    temperature: `tempAlert_${state.safeNid}`,
+    humidite:    `humAlert_${state.safeNid}`,
+    vibration:   `vibAlert_${state.safeNid}`,
+    tension:     `tensionAlert_${state.safeNid}`
+  };
+
+  for (const [metric, value] of Object.entries(checks)) {
+    const limits  = CONFIG.alerts[metric];
+    const isAlert = Number.isFinite(value) && (value < limits.min || value > limits.max);
+    const el      = document.getElementById(alertIds[metric]);
+
+    if (el) el.style.display = isAlert ? 'block' : 'none';
+    AlertLog.logTransition(state, metric, isAlert, value);
   }
-
-  const humAlert = document.getElementById(`humAlert_${safeNid}`);
-  isHumAlert = Number.isFinite(metrics.humidite)
-    && (metrics.humidite < ALERT_LIMITS.humidite.min || metrics.humidite > ALERT_LIMITS.humidite.max);
-  if (humAlert) {
-    humAlert.style.display = isHumAlert ? 'block' : 'none';
-  }
-
-  const vibAlert = document.getElementById(`vibAlert_${safeNid}`);
-  isVibAlert = Number.isFinite(metrics.vibration)
-    && (metrics.vibration < ALERT_LIMITS.vibration.min || metrics.vibration > ALERT_LIMITS.vibration.max);
-  if (vibAlert) {
-    vibAlert.style.display = isVibAlert ? 'block' : 'none';
-  }
-
-  const tensionAlert = document.getElementById(`tensionAlert_${safeNid}`);
-  isTensionAlert = Number.isFinite(metrics.tension)
-    && (metrics.tension < ALERT_LIMITS.tension.min || metrics.tension > ALERT_LIMITS.tension.max);
-  if (tensionAlert) {
-    tensionAlert.style.display = isTensionAlert ? 'block' : 'none';
-  }
-
-  logAlertTransition(state, 'temperature', isTempAlert, metrics.temperature);
-  logAlertTransition(state, 'humidite', isHumAlert, metrics.humidite);
-  logAlertTransition(state, 'vibration', isVibAlert, metrics.vibration);
-  logAlertTransition(state, 'tension', isTensionAlert, metrics.tension);
 }
 
 function updateNidCharts(state, metrics, timeLabel) {
-  const hasTemperature = pushPoint(state.series.temperature, metrics.temperature, timeLabel);
-  const hasHumidite = pushPoint(state.series.humidite, metrics.humidite, timeLabel);
-  const hasVibration = pushPoint(state.series.vibration, metrics.vibration, timeLabel);
-  const hasTension = pushPoint(state.series.tension, metrics.tension, timeLabel);
+  const flags = {
+    hasTemperature: pushPoint(state.series.temperature, metrics.temperature, timeLabel),
+    hasHumidite:    pushPoint(state.series.humidite,    metrics.humidite,    timeLabel),
+    hasVibration:   pushPoint(state.series.vibration,   metrics.vibration,   timeLabel),
+    hasTension:     pushPoint(state.series.tension,     metrics.tension,     timeLabel)
+  };
 
-  if (hasTemperature) {
-    updateChartIfUsable(
-      state.charts.temperature,
-      [...state.series.temperature.values],
-      [...state.series.temperature.labels]
-    );
-  }
-
-  if (hasHumidite) {
-    updateChartIfUsable(
-      state.charts.humidite,
-      [...state.series.humidite.values],
-      [...state.series.humidite.labels]
-    );
-  }
-
-  if (hasVibration) {
-    updateChartIfUsable(
-      state.charts.vibration,
-      [...state.series.vibration.values],
-      [...state.series.vibration.labels]
-    );
-  }
-
-  if (hasTension) {
-    updateChartIfUsable(
-      state.charts.tension,
-      [...state.series.tension.values],
-      [...state.series.tension.labels]
-    );
-  }
+  if (flags.hasTemperature) Charts.update(state.charts.temperature, [...state.series.temperature.values], [...state.series.temperature.labels]);
+  if (flags.hasHumidite)    Charts.update(state.charts.humidite,    [...state.series.humidite.values],    [...state.series.humidite.labels]);
+  if (flags.hasVibration)   Charts.update(state.charts.vibration,   [...state.series.vibration.values],   [...state.series.vibration.labels]);
+  if (flags.hasTension)     Charts.update(state.charts.tension,     [...state.series.tension.values],     [...state.series.tension.labels]);
 
   updateAlerts(state, metrics);
-
-  return { hasTemperature, hasHumidite, hasVibration, hasTension };
+  return flags;
 }
 
-function pickNumber(...values) {
-  for (const value of values) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return NaN;
-}
-
-function updateSummaryCards(metrics, flags) {
-  if (!selectedNid) return;
-  if (tempEl && flags.hasTemperature) tempEl.textContent = `${metrics.temperature.toFixed(2)} °C`;
-  if (humEl && flags.hasHumidite) humEl.textContent = `${metrics.humidite.toFixed(2)} %`;
-  if (vibEl && flags.hasVibration) vibEl.textContent = `${metrics.vibration.toFixed(2)} Mpu`;
-  if (soundEl && flags.hasTension) soundEl.textContent = `${metrics.tension.toFixed(2)} V`;
-}
+// ─────────────────────────────────────────────
+// 11. POINT D'ENTRÉE DE MISE À JOUR (MQTT / SSE / POLLING)
+// ─────────────────────────────────────────────
 
 function updateCharts(payload, topic) {
-  if (!payload) return;
+  if (!payload || typeof payload !== 'object') return;
 
+  // Support de l'enveloppe collector : { data: { ... }, nid: '...' }
   const normalized = payload.data ?? payload;
   if (!normalized || typeof normalized !== 'object') return;
 
-  // Keep top-level metadata (e.g. collector envelope nid) for nid resolution.
-  const nid = extractNid(topic, payload);
+  const nid   = extractNid(topic, payload);
   const state = getNidState(nid);
   if (!state) return;
 
   const metrics = {
     temperature: pickNumber(normalized.temperature, normalized.temp),
-    humidite: pickNumber(normalized.humidite, normalized.humidity, normalized.hum),
-    vibration: pickNumber(normalized.vibration, normalized.vib),
-    tension: pickNumber(normalized.tension, normalized.sound)
+    humidite:    pickNumber(normalized.humidite,    normalized.humidity, normalized.hum),
+    vibration:   pickNumber(normalized.vibration,   normalized.vib),
+    tension:     pickNumber(normalized.tension,      normalized.sound)
   };
 
-  const time = new Date().toLocaleTimeString();
-  const flags = updateNidCharts(state, metrics, time);
+  const timeLabel = new Date().toLocaleTimeString();
+  const flags     = updateNidCharts(state, metrics, timeLabel);
 
+  // Mise en cache des dernières métriques connues
   state.lastMetrics = {
     temperature: Number.isFinite(metrics.temperature) ? metrics.temperature : NaN,
-    humidite: Number.isFinite(metrics.humidite) ? metrics.humidite : NaN,
-    vibration: Number.isFinite(metrics.vibration) ? metrics.vibration : NaN,
-    tension: Number.isFinite(metrics.tension) ? metrics.tension : NaN
+    humidite:    Number.isFinite(metrics.humidite)    ? metrics.humidite    : NaN,
+    vibration:   Number.isFinite(metrics.vibration)   ? metrics.vibration   : NaN,
+    tension:     Number.isFinite(metrics.tension)     ? metrics.tension     : NaN
   };
 
-  if (selectedNid === nid) {
-    updateSummaryCards(metrics, flags);
+  if (UI.selectedNid === nid) {
+    UI.updateSummaryCards(metrics, flags);
   }
 }
 
-function stopRealtimeUpdates() {
-  if (mqttClient) {
-    try {
-      mqttClient.end(true);
-    } catch (_err) {
+// ─────────────────────────────────────────────
+// 12. INTERFACE UTILISATEUR
+// ─────────────────────────────────────────────
+
+const UI = {
+  selectedNid: null,
+
+  // Éléments DOM
+  els: {},
+
+  init() {
+    const ids = [
+      'temp-value',  'hum-value', 'vib-value', 'sound-value',
+      'nidSelect',   'historyHours', 'loadHistoryBtn', 'historyStatus',
+      'userInfo',    'userRole', 'grafanaLink',
+      'alertLogList','alertLogEmpty', 'logoutBtn'
+    ];
+
+    for (const id of ids) {
+      this.els[id] = document.getElementById(id);
     }
-    mqttClient = null;
-  }
 
-  if (collectorEventsSource) {
-    try {
-      collectorEventsSource.close();
-    } catch (_err) {
+    if (this.els['grafanaLink']) {
+      this.els['grafanaLink'].href = '/grafana/';
     }
-    collectorEventsSource = null;
-  }
 
-  if (collectorPollHandle) {
-    window.clearInterval(collectorPollHandle);
-    collectorPollHandle = null;
-  }
-}
+    AlertLog.init(this.els['alertLogList'], this.els['alertLogEmpty']);
+    this._bindEvents();
+  },
 
-async function loadCollectorLatest() {
-  try {
-    const res = await fetch('/collector/latest', { cache: 'no-store' });
-    if (!res.ok) return;
-    const payload = await res.json();
-    updateCharts(payload, payload.topic || 'collector/latest');
-  } catch (_err) {
-  }
-}
+  _bindEvents() {
+    this.els['nidSelect']?.addEventListener('change', () => {
+      this.selectedNid = this.els['nidSelect'].value || null;
+      this.applyNidVisibility();
+      this.updateSummaryCardsForSelected();
+    });
 
-function startCollectorEvents() {
-  if (typeof EventSource === 'undefined') return;
+    this.els['loadHistoryBtn']?.addEventListener('click', () => this._onLoadHistory());
 
-  if (collectorEventsSource) {
-    try {
-      collectorEventsSource.close();
-    } catch (_err) {
-    }
-  }
+    this.els['logoutBtn']?.addEventListener('click', () => Auth.logout());
+  },
 
-  collectorEventsSource = new EventSource('/collector/events');
-  collectorEventsSource.onmessage = (event) => {
-    let payload;
-    try {
-      payload = JSON.parse(event.data);
-    } catch (_err) {
+  async _onLoadHistory() {
+    const statusEl = this.els['historyStatus'];
+
+    if (!this.selectedNid) {
+      if (statusEl) statusEl.textContent = 'Veuillez choisir un nid avant de charger l\'historique.';
       return;
     }
 
-    try {
-      updateCharts(payload, payload.topic || 'collector/events');
-    } catch (err) {
-      console.error('Collector chart update error', err);
+    const hours = Number(this.els['historyHours']?.value) || CONFIG.charts.historyDefaultHours;
+    if (statusEl) statusEl.textContent = `Chargement de l'historique ${hours}h pour ${this.selectedNid}…`;
+
+    await History.loadForNid(this.selectedNid, hours, statusEl);
+  },
+
+  registerNidInSelect(nid) {
+    const sel = this.els['nidSelect'];
+    if (!sel) return;
+
+    const exists = Array.from(sel.options).some((o) => o.value === nid);
+    if (!exists) {
+      const opt = document.createElement('option');
+      opt.value       = nid;
+      opt.textContent = `Nid ${nid}`;
+      sel.appendChild(opt);
     }
-  };
 
-  collectorEventsSource.onerror = () => {
-    // EventSource reconnects automatically.
-  };
-}
+    if (!this.selectedNid) {
+      this.selectedNid = nid;
+      sel.value        = nid;
+    }
+  },
 
-function startMqtt(wsUrl = MQTT_WS_URL, topics = MQTT_TOPICS) {
-  if (!window.mqtt) return;
+  applyNidVisibility() {
+    const container = document.getElementById('nidsContainer');
+    if (!container) return;
 
-  if (mqttClient) {
-    mqttClient.end(true);
+    container.querySelectorAll('.nid-block').forEach((block) => {
+      const nid = block.getAttribute('data-nid');
+      block.style.display = (this.selectedNid && nid === this.selectedNid) ? 'block' : 'none';
+    });
+  },
+
+  updateHeader() {
+    if (this.els['userInfo']) this.els['userInfo'].textContent = `Utilisateur : ${Auth.getUser()}`;
+    if (this.els['userRole']) this.els['userRole'].textContent = `Rôle : ${Auth.getRole()}`;
+  },
+
+  applyRoleAccessControl() {
+    if (Auth.isAdmin()) return;
+
+    const sel = this.els['nidSelect'];
+    if (sel) sel.disabled = true;
+
+    const filterWrap = document.querySelector('.nid-filter-wrap');
+    if (filterWrap && !filterWrap.querySelector('.role-info')) {
+      const info = document.createElement('p');
+      info.className   = 'role-info';
+      info.style.cssText = 'font-size:0.9rem; color:#f6c23e;';
+      info.textContent = 'Mode lecteur : sélection de nid désactivée. Contactez un administrateur.';
+      filterWrap.appendChild(info);
+    }
+  },
+
+  updateSummaryCards(metrics, flags) {
+    if (!this.selectedNid) return;
+    const { els } = this;
+    if (els['temp-value']  && flags.hasTemperature) els['temp-value'].textContent  = `${metrics.temperature.toFixed(2)} °C`;
+    if (els['hum-value']   && flags.hasHumidite)    els['hum-value'].textContent   = `${metrics.humidite.toFixed(2)} %`;
+    if (els['vib-value']   && flags.hasVibration)   els['vib-value'].textContent   = `${metrics.vibration.toFixed(2)} Mpu`;
+    if (els['sound-value'] && flags.hasTension)     els['sound-value'].textContent = `${metrics.tension.toFixed(2)} V`;
+  },
+
+  updateSummaryCardsForSelected() {
+    if (!this.selectedNid) return;
+    const state = nidStates.get(this.selectedNid);
+    if (!state?.lastMetrics) return;
+
+    const m = state.lastMetrics;
+    const { els } = this;
+    if (els['temp-value']  && Number.isFinite(m.temperature)) els['temp-value'].textContent  = `${m.temperature.toFixed(2)} °C`;
+    if (els['hum-value']   && Number.isFinite(m.humidite))    els['hum-value'].textContent   = `${m.humidite.toFixed(2)} %`;
+    if (els['vib-value']   && Number.isFinite(m.vibration))   els['vib-value'].textContent   = `${m.vibration.toFixed(2)} Mpu`;
+    if (els['sound-value'] && Number.isFinite(m.tension))     els['sound-value'].textContent = `${m.tension.toFixed(2)} V`;
+  },
+
+  /** Affiche une alerte visuelle (conservé pour la compatibilité). */
+  showVisualAlert(message) {
+    const alertBox = document.getElementById('alertBox');
+    if (!alertBox) return;
+    alertBox.textContent = message; // textContent, pas innerHTML → pas d'injection XSS
+    alertBox.style.display = 'block';
+    alertBox.classList.add('blink');
+  }
+};
+
+// ─────────────────────────────────────────────
+// 13. HISTORIQUE
+// ─────────────────────────────────────────────
+
+const History = {
+  async loadForNid(nid, hours = CONFIG.charts.historyDefaultHours, statusEl = null) {
+    const state = getNidState(nid);
+    if (!state) return;
+
+    try {
+      const url = `/collector/history?nid=${encodeURIComponent(nid)}&hours=${encodeURIComponent(hours)}&limit=${CONFIG.charts.historyMaxPoints}`;
+      const res = await fetch(url, { cache: 'no-store' });
+
+      if (!res.ok) throw new Error(`Erreur serveur ${res.status}`);
+
+      const json    = await res.json();
+      const history = Array.isArray(json.results) ? json.results : [];
+
+      this._apply(state, history);
+      if (statusEl) statusEl.textContent = `Données historiques chargées (${history.length} points).`;
+    } catch (err) {
+      if (statusEl) statusEl.textContent = 'Impossible de charger l\'historique. Vérifiez le collector.';
+      console.error('[History] Erreur de chargement :', err);
+    }
+  },
+
+  _apply(state, history) {
+    const metrics = ['temperature', 'humidite', 'vibration', 'tension'];
+
+    for (const metric of metrics) {
+      const series = buildRegularSeries(history, metric);
+      state.series[metric] = series;
+      Charts.update(state.charts[metric], series.values, series.labels);
+    }
+  }
+};
+
+// ─────────────────────────────────────────────
+// 14. TEMPS RÉEL : MQTT + SSE + POLLING
+// ─────────────────────────────────────────────
+
+const Realtime = (() => {
+  let mqttClient           = null;
+  let sseSource            = null;
+  let pollHandle           = null;
+  let lastPayloadSignature = null;
+
+  function _parsePayload(raw) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
   }
 
-  mqttClient = window.mqtt.connect(wsUrl, {
-    reconnectPeriod: 2000,
-    connectTimeout: 5000
-  });
-
-  mqttClient.on('connect', () => {
-    mqttClient.subscribe(topics);
-  });
-
-  mqttClient.on('message', (receivedTopic, message) => {
-    const payloadText = message.toString();
-    const signature = `${receivedTopic}::${payloadText}`;
-    if (signature === lastPayloadSignature) return;
-
-    let payload;
+  function _onPayload(payload, topic) {
+    if (!payload) return;
     try {
-      payload = JSON.parse(payloadText);
+      updateCharts(payload, topic);
     } catch (err) {
-      console.error('MQTT JSON parse error', err);
-      return;
+      console.error('[Realtime] Erreur de mise à jour :', err);
     }
+  }
 
-    lastPayloadSignature = signature;
+  async function _pollLatest() {
     try {
-      updateCharts(payload, receivedTopic);
-    } catch (err) {
-      console.error('MQTT chart update error', err);
-    }
-  });
+      const res = await fetch('/collector/latest', { cache: 'no-store' });
+      if (!res.ok) return;
+      const payload = await res.json();
+      _onPayload(payload, payload.topic || 'collector/latest');
+    } catch (_) {}
+  }
 
-  mqttClient.on('error', (err) => {
-    console.error('MQTT error', err);
-  });
-}
+  return {
+    start() {
+      this.startMqtt();
+      this.startSSE();
+
+      if (!pollHandle) {
+        pollHandle = window.setInterval(_pollLatest, CONFIG.collectorPollInterval);
+        _pollLatest(); // chargement immédiat
+      }
+    },
+
+    stop() {
+      if (mqttClient)   { try { mqttClient.end(true); } catch (_) {}; mqttClient = null; }
+      if (sseSource)    { try { sseSource.close();    } catch (_) {}; sseSource  = null; }
+      if (pollHandle)   { window.clearInterval(pollHandle); pollHandle = null; }
+    },
+
+    startMqtt() {
+      if (!window.mqtt) return;
+      if (mqttClient)   { mqttClient.end(true); }
+
+      mqttClient = window.mqtt.connect(CONFIG.mqtt.url, {
+        reconnectPeriod: CONFIG.mqtt.reconnectPeriod,
+        connectTimeout:  CONFIG.mqtt.connectTimeout
+      });
+
+      mqttClient.on('connect', () => {
+        mqttClient.subscribe(CONFIG.mqtt.topics);
+      });
+
+      mqttClient.on('message', (topic, message) => {
+        const text = message.toString();
+        // Déduplication : évite de traiter deux fois le même message (MQTT QoS ≥ 1)
+        const sig = `${topic}::${text}`;
+        if (sig === lastPayloadSignature) return;
+        lastPayloadSignature = sig;
+
+        const payload = _parsePayload(text);
+        _onPayload(payload, topic);
+      });
+
+      mqttClient.on('error', (err) => console.error('[MQTT] Erreur :', err));
+    },
+
+    startSSE() {
+      if (typeof EventSource === 'undefined') return;
+      if (sseSource) { try { sseSource.close(); } catch (_) {} }
+
+      sseSource = new EventSource('/collector/events');
+      sseSource.onmessage = (event) => {
+        const payload = _parsePayload(event.data);
+        _onPayload(payload, payload?.topic || 'collector/events');
+      };
+      // EventSource reconnecte automatiquement en cas d'erreur.
+    }
+  };
+})();
+
+// ─────────────────────────────────────────────
+// 15. INITIALISATION
+// ─────────────────────────────────────────────
 
 function initDashboard() {
-  if (!ensureAuthenticated()) return;
-  initDomRefs();
-  updateUserHeader();
-  applyRoleAccessControl();
-  startMqtt();
-  loadCollectorLatest();
-  startCollectorEvents();
-  if (!collectorPollHandle) {
-    collectorPollHandle = window.setInterval(loadCollectorLatest, 5000);
-  }
+  if (!Auth.requireAuth()) return;
+
+  UI.init();
+  UI.updateHeader();
+  UI.applyRoleAccessControl();
+  Realtime.start();
 }
 
+// Lancement au bon moment selon l'état du DOM
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initDashboard, { once: true });
 } else {
   initDashboard();
 }
 
-window.addEventListener('beforeunload', stopRealtimeUpdates);
-window.addEventListener('pagehide', stopRealtimeUpdates);
+// Nettoyage propre à la fermeture/navigation
+window.addEventListener('beforeunload', () => Realtime.stop());
+window.addEventListener('pagehide',     () => Realtime.stop());
 
-function showVisualAlert(message) {
-  const alertBox = document.getElementById("alertBox");
-  alertBox.textContent = message;
-  alertBox.style.display = "block";
-  alertBox.classList.add("blink");
-}
+// Export pour compatibilité externe (e.g. HTML inline onclick)
+window.showVisualAlert = (msg) => UI.showVisualAlert(msg);
