@@ -168,11 +168,26 @@ function storageSet(key, value) {
 //   CHARGEMENT DES UTILISATEURS
 // ===============================
 let USERS = {};
+let usersLoaded = false;
 
 fetch("users.json")
-  .then(res => res.json())
-  .then(data => USERS = data)
-  .catch(() => console.error("Impossible de charger users.json"));
+  .then((res) => {
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    return res.json();
+  })
+  .then((data) => {
+    USERS = data;
+    usersLoaded = true;
+  })
+  .catch((err) => {
+    console.error("Impossible de charger users.json", err);
+    usersLoaded = false;
+    if (errorEl) {
+      errorEl.textContent = "Impossible de charger les utilisateurs.";
+    }
+  });
 
 // ===============================
 //   REDIRECTION SI DÉJÀ CONNECTÉ
@@ -191,8 +206,14 @@ const errorEl = document.getElementById('loginError');
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
+  errorEl.textContent = "";
 
   try {
+    if (!usersLoaded) {
+      errorEl.textContent = "Chargement des utilisateurs en cours. Reessayez dans un instant.";
+      return;
+    }
+
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
 
@@ -212,7 +233,12 @@ form.addEventListener('submit', async (event) => {
       storageSet(USER_KEY, username);
       storageSet(ROLE_KEY, user.role);
 
-      window.location.href = DASHBOARD_URL;
+      if (storageGet(AUTH_KEY) !== '1' || storageGet(USER_KEY) !== username || storageGet(ROLE_KEY) !== user.role) {
+        errorEl.textContent = "Connexion refusee: le navigateur bloque le stockage local.";
+        return;
+      }
+
+      window.location.replace(DASHBOARD_URL);
       return;
     }
 
