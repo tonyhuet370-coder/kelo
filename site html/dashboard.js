@@ -1,5 +1,5 @@
 const MQTT_WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const DEFAULT_MQTT_WS_URL = `${MQTT_WS_PROTOCOL}//${window.location.hostname}:9001`;
+const DEFAULT_MQTT_WS_URL = `${MQTT_WS_PROTOCOL}//${window.location.host}/mqtt/`;
 const DEFAULT_MQTT_TOPICS = ['kelo/nid/+/telemetry', 'kelonia/#'];
 const MQTT_WS_URL = (() => { try { return localStorage.getItem('mqttWsUrl'); } catch (e) { return null; } })() || DEFAULT_MQTT_WS_URL;
 const MQTT_TOPICS = (() => {

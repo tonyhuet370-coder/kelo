@@ -101,6 +101,17 @@ http://WEB_IP
 
 L'API est automatiquement proxy via nginx vers la VM du simulateur !
 
+### Exposition externe
+
+Le dashboard peut etre publie vers l'exterieur a condition d'exposer uniquement le port web du service Nginx (`WEB_PORT`, par defaut `8080`) et de rediriger ce port sur la box / le pare-feu.
+
+Le flux temps reel MQTT WebSocket passe maintenant via Nginx sur `/mqtt/`, donc il n'est plus necessaire d'ouvrir le port `9001` publiquement pour le dashboard.
+
+Recommandations minimales :
+- ouvrir ou rediriger seulement `WEB_PORT` vers le serveur Docker
+- proteger l'acces par mot de passe fort pour Grafana
+- preferer un reverse proxy HTTPS en frontal si le site doit etre accessible depuis Internet
+
 ---
 
 ## Commandes utiles
