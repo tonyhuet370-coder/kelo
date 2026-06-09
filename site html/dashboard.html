@@ -61,6 +61,20 @@
           <option value="">Choisir un nid</option>
         </select>
       </div>
+      <div class="card history-card">
+        <label for="historyHours">Historique</label>
+        <div class="history-controls">
+          <select id="historyHours">
+            <option value="1">1 heure</option>
+            <option value="6">6 heures</option>
+            <option value="12">12 heures</option>
+            <option value="24" selected>24 heures</option>
+            <option value="48">48 heures</option>
+          </select>
+          <button id="loadHistoryBtn" type="button">Charger l'ancienne donnée</button>
+        </div>
+        <p id="historyStatus" class="small-text">Cliquez pour afficher les anciennes valeurs du nid sélectionné.</p>
+      </div>
     </section>
 
     <section class="container log-wrap">

@@ -9,6 +9,8 @@ import requests
 import paho.mqtt.client as mqtt
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from auth_routes import auth_bp
+from auth import init_auth_db
 
 # ============================
 # LOGGING
@@ -66,7 +68,7 @@ def send_telegram_alert(message):
         return
 
     if not TELEGRAM_API_URL or not TELEGRAM_CHAT_IDS:
-        logger.warning(" Telegram non configure, alerte ignoree")
+        logger.warning("Telegram non configuré, alerte ignorée")
         return
 
     has_error = False
@@ -78,13 +80,13 @@ def send_telegram_alert(message):
                 timeout=10
             )
             response.raise_for_status()
-            logger.info(f" Alerte Telegram envoyee a {chat_id} : {message}")
+            logger.info(f"Alerte Telegram envoyée à {chat_id} : {message}")
         except Exception as e:
             has_error = True
-            logger.error(f" Erreur Telegram pour {chat_id} : {e}")
+            logger.error(f"Erreur Telegram pour {chat_id} : {e}")
 
     if has_error:
-        logger.warning(" Une ou plusieurs alertes Telegram n'ont pas pu etre envoyees")
+        logger.warning("Une ou plusieurs alertes Telegram n'ont pas pu être envoyées")
 
 def should_send_alert(alert_key):
     now = time.time()
@@ -150,22 +152,22 @@ def check_alerts(data):
 
     if data["temperature"] > TEMPERATURE_ALERT_THRESHOLD and should_send_alert((nid, "temperature")):
         send_telegram_alert(
-            f"Alerte nid {nid}: temperature elevee ({data['temperature']} C)"
+            f"Alerte nid {nid} : température élevée ({data['temperature']} °C)"
         )
 
     if data["humidite"] > HUMIDITE_ALERT_THRESHOLD and should_send_alert((nid, "humidite")):
         send_telegram_alert(
-            f"Alerte nid {nid}: humidite elevee ({data['humidite']} %)"
+            f"Alerte nid {nid} : humidité élevée ({data['humidite']} %)"
         )
 
     if data["vibration"] > VIBRATION_ALERT_THRESHOLD and should_send_alert((nid, "vibration")):
         send_telegram_alert(
-            f"Alerte nid {nid}: vibration elevee ({data['vibration']})"
+            f"Alerte nid {nid} : vibration élevée ({data['vibration']})"
         )
 
     if data["tension"] < TENSION_ALERT_THRESHOLD and should_send_alert((nid, "tension")):
         send_telegram_alert(
-            f"Alerte nid {nid}: tension faible ({data['tension']} V)"
+            f"Alerte nid {nid} : tension faible ({data['tension']} V)"
         )
 
 # ============================
@@ -189,15 +191,17 @@ def publish_loop():
         time.sleep(PUBLISH_INTERVAL)
 
 # ============================
-# ROUTES FLASK
+# ROUTES FLASK (API REST)
 # ============================
 @app.route('/data', methods=['GET'])
 def send_data():
+    """API REST : renvoie les données JSON du simulateur"""
     data = generate_data(SIMULATED_NID)
     return jsonify(data)
 
 @app.route('/alert', methods=['POST'])
 def alert():
+    """API REST : envoie une alerte Telegram manuelle"""
     data = request.get_json()
     message = f"🚨 Alerte : {data['type']} - Valeur : {data['value']}"
     send_telegram_alert(message)
@@ -216,12 +220,19 @@ def receive_sensor_data():
         }), 400
 
     check_alerts(data)
-    return jsonify({"status": "ok", "message": "Donnees capteur traitees"})
+    return jsonify({"status": "ok", "message": "Données capteur traitées"})
 
 # ============================
 # MAIN
 # ============================
 if __name__ == '__main__':
+    # Initialiser la base de données d'authentification
+    init_auth_db()
+    
+    # Enregistrer les routes d'authentification
+    app.register_blueprint(auth_bp)
+    
+    # Démarrer la publication MQTT en arrière-plan
     threading.Thread(target=publish_loop, daemon=True).start()
-    logger.info(f" Simulateur démarré sur {HOST}:{PORT}")
+    logger.info(f"Simulateur démarré sur {HOST}:{PORT}")
     app.run(host=HOST, port=PORT, debug=DEBUG)
