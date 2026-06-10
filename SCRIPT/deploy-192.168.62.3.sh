@@ -23,7 +23,11 @@ fi
 if "${DOCKER_CMD[@]}" compose version >/dev/null 2>&1; then
     COMPOSE_CMD=("${DOCKER_CMD[@]}" compose)
 elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker-compose)
+    if docker-compose version >/dev/null 2>&1; then
+        COMPOSE_CMD=(docker-compose)
+    else
+        COMPOSE_CMD=(sudo docker-compose)
+    fi
 else
     echo "Docker Compose n'est pas installé"
     exit 1
