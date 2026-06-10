@@ -36,7 +36,8 @@ DEBUG = os.getenv('FLASK_ENV') == 'development'
 
 MQTT_BROKER = os.getenv('MQTT_BROKER', 'localhost')
 MQTT_PORT = int(os.getenv('MQTT_PORT', 1883))
-MQTT_TOPIC_TEMPLATE = os.getenv('MQTT_TOPIC_TEMPLATE', 'kelo/nid/{nid}/telemetry')
+DEFAULT_MQTT_TOPIC_TEMPLATE = 'kelo/nid/{nid}/telemetry'
+MQTT_TOPIC_TEMPLATE = os.getenv('MQTT_TOPIC_TEMPLATE', DEFAULT_MQTT_TOPIC_TEMPLATE)
 SIMULATED_NID = os.getenv('SIMULATED_NID', 'A12')
 PUBLISH_INTERVAL = float(os.getenv('PUBLISH_INTERVAL', 5))
 TEMPERATURE_ALERT_THRESHOLD = float(os.getenv('TEMPERATURE_ALERT_THRESHOLD', 32))
@@ -104,7 +105,16 @@ mqtt_client = None
 connected_event = threading.Event()
 
 def build_topic(nid):
-    return MQTT_TOPIC_TEMPLATE.format(nid=nid)
+    try:
+        return MQTT_TOPIC_TEMPLATE.format(nid=nid)
+    except (KeyError, ValueError) as exc:
+        logger.warning(
+            "Template MQTT invalide '%s', fallback sur '%s' (%s)",
+            MQTT_TOPIC_TEMPLATE,
+            DEFAULT_MQTT_TOPIC_TEMPLATE,
+            exc,
+        )
+        return DEFAULT_MQTT_TOPIC_TEMPLATE.format(nid=nid)
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
