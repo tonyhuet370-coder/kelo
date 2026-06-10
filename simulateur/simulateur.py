@@ -203,6 +203,10 @@ def publish_loop():
 # ============================
 # ROUTES FLASK (API REST)
 # ============================
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "ok"})
+
 @app.route('/data', methods=['GET'])
 def send_data():
     """API REST : renvoie les données JSON du simulateur"""
