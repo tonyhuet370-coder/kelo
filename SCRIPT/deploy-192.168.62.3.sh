@@ -8,6 +8,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_DIR="$SCRIPT_DIR/../fichier configuration"
 ENV_FILE="$COMPOSE_DIR/.env.192.168.62.3"
 OVERRIDE_FILE="$COMPOSE_DIR/docker-compose.192.168.62.3.yml"
+MOSQUITTO_DATA_DIR="$SCRIPT_DIR/../Test/mosquitto/data"
+MOSQUITTO_LOG_DIR="$SCRIPT_DIR/../Test/mosquitto/log"
 
 if ! command -v docker >/dev/null 2>&1; then
     echo "Docker n'est pas installé"
@@ -42,6 +44,8 @@ WEB_PORT="$(grep -E '^WEB_PORT=' "$ENV_FILE" | tail -n 1 | cut -d '=' -f 2- | tr
 WEB_PORT="${WEB_PORT:-8080}"
 
 MQTT_EXTERNAL_NETWORK="$(grep -E '^MQTT_EXTERNAL_NETWORK=' "$ENV_FILE" | tail -n 1 | cut -d '=' -f 2- | tr -d '[:space:]')"
+
+mkdir -p "$MOSQUITTO_DATA_DIR" "$MOSQUITTO_LOG_DIR"
 
 cd "$COMPOSE_DIR"
 
