@@ -198,6 +198,13 @@ const Charts = {
   }
 };
 
+const CHART_DEFINITIONS = Object.freeze({
+  temperature: { idPrefix: 'tempChart_', label: 'Température (°C)', color: 'rgba(75, 192, 192, 1)' },
+  humidite: { idPrefix: 'humChart_', label: 'Humidité (%)', color: 'rgba(255, 204, 0, 1)' },
+  vibration: { idPrefix: 'vibrationChart_', label: 'Vibrations (Mpu)', color: 'rgba(255, 206, 86, 1)' },
+  tension: { idPrefix: 'tensionChart_', label: 'Tension (V)', color: 'rgba(153, 102, 255, 1)' }
+});
+
 // ─────────────────────────────────────────────
 // 6. SÉRIES TEMPORELLES
 // ─────────────────────────────────────────────
@@ -439,6 +446,18 @@ function updateAlerts(state, metrics) {
 }
 
 function updateNidCharts(state, metrics, timeLabel) {
+  for (const [metric, definition] of Object.entries(CHART_DEFINITIONS)) {
+    if (Charts.isUsable(state.charts[metric])) continue;
+
+    state.charts[metric] = Charts.create(
+      `${definition.idPrefix}${state.safeNid}`,
+      `${definition.label} · Nid ${state.nid}`,
+      definition.color,
+      [...state.series[metric].values],
+      [...state.series[metric].labels]
+    );
+  }
+
   const flags = {
     hasTemperature: pushPoint(state.series.temperature, metrics.temperature, timeLabel),
     hasHumidite:    pushPoint(state.series.humidite,    metrics.humidite,    timeLabel),
