@@ -46,15 +46,13 @@ VIBRATION_ALERT_THRESHOLD = float(os.getenv('VIBRATION_ALERT_THRESHOLD', 5))
 TENSION_ALERT_THRESHOLD = float(os.getenv('TENSION_ALERT_THRESHOLD', 1))
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '').strip()
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '').strip()
-TELEGRAM_CHAT_IDS = [
-    chat_id.strip()
-    for chat_id in os.getenv('TELEGRAM_CHAT_IDS', '').split(',')
-    if chat_id.strip()
-]
+TELEGRAM_CHAT_IDS = []
+for raw_value in (os.getenv('TELEGRAM_CHAT_IDS', ''), TELEGRAM_CHAT_ID):
+    for chat_id in raw_value.split(','):
+        chat_id = chat_id.strip()
+        if chat_id and chat_id not in TELEGRAM_CHAT_IDS:
+            TELEGRAM_CHAT_IDS.append(chat_id)
 TELEGRAM_ALERTS_ENABLED = os.getenv('TELEGRAM_ALERTS_ENABLED', 'true').lower() in {'1', 'true', 'yes', 'on'}
-
-if TELEGRAM_CHAT_ID and TELEGRAM_CHAT_ID not in TELEGRAM_CHAT_IDS:
-    TELEGRAM_CHAT_IDS.append(TELEGRAM_CHAT_ID)
 
 # ============================
 # TELEGRAM BOT

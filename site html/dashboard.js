@@ -16,7 +16,17 @@ const CONFIG = Object.freeze({
     reconnectPeriod: 2000,
     connectTimeout: 5000,
     get url() {
-      return Storage.get('mqttWsUrl') || this.defaultUrl;
+      const saved = Storage.get('mqttWsUrl');
+      if (!saved) return this.defaultUrl;
+
+      // Ancien comportement : connexion directe au broker sur :9001.
+      // On l'ignore désormais pour forcer le proxy nginx /mqtt/.
+      if (/^wss?:\/\/[^/]+:9001\/?$/i.test(String(saved).trim())) {
+        Storage.remove('mqttWsUrl');
+        return this.defaultUrl;
+      }
+
+      return saved;
     },
     get topics() {
       const saved = Storage.get('mqttTopic');
