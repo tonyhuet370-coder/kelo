@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 import os
 import ssl
 import sqlite3
@@ -239,16 +240,65 @@ def on_connect(client, userdata, flags, rc):
    
     client.subscribe(TOPIC)
 
+
+def extract_nid_from_topic(topic: str) -> str:
+    parts = [part for part in str(topic).split('/') if part]
+    if len(parts) >= 4 and parts[0] == 'kelo' and parts[1] == 'nid':
+        return parts[2]
+    return 'unknown'
+
+
+def normalize_payload(data, topic: str) -> dict | None:
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except Exception:
+            return None
+
+    if not isinstance(data, dict):
+        return None
+
+    normalized = dict(data)
+
+    nid = str(normalized.get('nid') or '').strip() or extract_nid_from_topic(topic)
+    normalized['nid'] = nid
+
+    if 'temperature' not in normalized and 'temp' in normalized:
+        normalized['temperature'] = normalized['temp']
+
+    if 'humidite' not in normalized:
+        if 'humidity' in normalized:
+            normalized['humidite'] = normalized['humidity']
+        elif 'hum' in normalized:
+            normalized['humidite'] = normalized['hum']
+
+    if 'vibration' not in normalized:
+        axis_values = []
+        for axis_name in ('ax', 'ay', 'az'):
+            try:
+                axis_values.append(float(normalized[axis_name]))
+            except (KeyError, TypeError, ValueError):
+                axis_values = []
+                break
+        if axis_values:
+            normalized['vibration'] = math.sqrt(sum(value * value for value in axis_values))
+
+    if 'tension' not in normalized and 'sound' in normalized:
+        normalized['tension'] = normalized['sound']
+
+    return normalized
+
 def on_message(client, userdata, msg):
     try:
         payload = msg.payload.decode()
         data = json.loads(payload)
     except Exception:
-       
         return
 
-    
-   
+    data = normalize_payload(data, msg.topic)
+    if not data:
+        return
+
     nid = data.get('nid', 'unknown')
     latest['nid'] = nid
     latest['topic'] = msg.topic
