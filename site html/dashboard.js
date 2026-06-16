@@ -365,7 +365,7 @@ function createNidState(nid) {
   block.innerHTML = `
     <h2>Nid ${safeNid}</h2>
     <div class="charts nid-charts">
-      ${_chartSection('Température',  `tempAlert_${safeNid}`,     'tempChart_${safeNid}',
+      ${_chartSection('Température',  `tempAlert_${safeNid}`,     `tempChart_${safeNid}`,
         'Température trop élevée : le sable dépasse 33–34 °C, seuil critique pour les œufs.')}
       ${_chartSection('Humidité',     `humAlert_${safeNid}`,      `humChart_${safeNid}`,
         'Humidité anormale : doit rester entre 60 % et 95 % pour les œufs.')}
