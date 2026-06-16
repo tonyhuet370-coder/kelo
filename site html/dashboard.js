@@ -9,6 +9,7 @@
 
 const CONFIG = Object.freeze({
   mqtt: {
+    enabled: false,
     protocol: window.location.protocol === 'https:' ? 'wss:' : 'ws:',
     get defaultUrl() {
       return `${this.protocol}//${window.location.host}/mqtt/`;
@@ -724,8 +725,11 @@ const Realtime = (() => {
 
   return {
     start() {
-      this.startMqtt();
       this.startSSE();
+
+      if (CONFIG.mqtt.enabled) {
+        this.startMqtt();
+      }
 
       if (!pollHandle) {
         pollHandle = window.setInterval(_pollLatest, CONFIG.collectorPollInterval);
